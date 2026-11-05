@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<!-- 页面入口：浏览器从这里加载网页、样式表和脚本。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#11131b">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Petal — 私人生活记录室</title>
+<link rel="manifest" href="manifest.webmanifest?v=2">
+<link rel="icon" href="assets/home-icon-48-v2.png" type="image/png" sizes="48x48">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/home-icon-192-v2.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- 背景装饰层：星点、雨丝和流星只负责氛围，不参与页面交互。 -->
+<div class="ambient" aria-hidden="true"><div class="starfield starfield-one"></div><div class="starfield starfield-two"></div><canvas class="rain-canvas" id="rainCanvas"></canvas><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="star"></i><i class="meteor"></i><i class="meteor meteor-second"></i><i class="meteor meteor-third"></i></div>
+<!-- 应用外框：包含顶部栏、左侧导航和当前显示的内容页面。 -->
+<div class="app" id="app">
+  <!-- 顶部栏：展示品牌、日期和主题切换。 -->
+  <header class="topbar">
+    <div class="brand"><div class="brand-mark"><span class="top-symbol">✧</span></div><div><div class="brand-name">Petal <span style="font-family:'Noto Serif SC',serif;font-size:15px">日常花笺</span></div><div class="brand-sub">A LITTLE SPACE FOR YOU</div></div></div>
+    <div class="top-right"><div class="date-chip" id="todayChip"><span class="top-symbol">✧</span> YOUR LITTLE JOURNAL</div><button class="theme-toggle" id="themeToggle" title="切换日夜间模式"><span class="top-symbol" id="themeToggleIcon">☼</span><span id="themeToggleLabel">日间</span></button><button class="settings-toggle" type="button" data-goto="settings" title="设置" aria-label="设置"><span aria-hidden="true">⚙</span><span>设置</span></button></div>
+  </header>
+  <div class="layout">
+    <!-- 主导航：点击按钮后切换到对应的功能页面。 -->
+    <aside class="sidebar">
+      <div class="side-label">YOUR PRIVATE SPACE</div>
+      <nav class="nav-list" aria-label="主导航">
+        <button class="nav-button active" data-view="chat"><span class="nav-icon"><span class="nav-glyph">✉</span></span><span class="nav-label">聊天</span></button>
+        <button class="nav-button" data-view="home"><span class="nav-icon"><span class="nav-glyph">✧</span></span><span class="nav-label">今日小笺</span></button>
+        <button class="nav-button" data-view="sleep"><span class="nav-icon"><span class="nav-glyph">☾</span></span><span class="nav-label">睡眠</span></button>
+        <button class="nav-button" data-view="food"><span class="nav-icon"><span class="nav-glyph">❀</span></span><span class="nav-label">饮食</span></button>
+        <button class="nav-button" data-view="fridge"><span class="nav-icon"><span class="nav-glyph">▣</span></span><span class="nav-label">冰箱</span></button>
+        <button class="nav-button" data-view="bowel"><span class="nav-icon"><span class="nav-glyph">♡</span></span><span class="nav-label">排便</span></button>
+        <button class="nav-button" data-view="weight"><span class="nav-icon"><span class="nav-glyph">⌁</span></span><span class="nav-label">体重记录</span></button>
+        <button class="nav-button" data-view="joy"><span class="nav-icon"><span class="nav-glyph">⎚</span></span><span class="nav-label">Joy 时间</span></button>
+      </nav>
+      <div class="sidebar-foot">慢一点也没关系。<br><span>今天也给自己留一点温柔。</span><br><br>✧ · · · ♡ · · · ✧</div>
+    </aside>
+    <!-- 主内容区：下面每个 view 区块对应一个可切换页面。 -->
+    <main>
+      <!-- 首页：根据健康记录变化的动画、待办事项和收藏。 -->
+      <section class="view" id="view-home">
+      <div class="shrine-stage">
+        <div class="shrine-frame" id="shrineFrame" aria-label="根据今日健康记录变化的琉璃月庭动画">
+          <div class="ornate-border" aria-hidden="true"></div>
+          <div class="star-field" id="starField" aria-hidden="true"></div>
+          <canvas id="shrineCanvas" aria-hidden="true"></canvas>
+          <svg id="shrineSvg" viewBox="0 0 380 550" role="img" aria-label="随饮水、饮食、睡眠、排便、体重和 Joy 记录变化的星月花园">
+            <defs>
+              <radialGradient id="haloGrad" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#fff9e6" stop-opacity="0.9"/>
+                <stop offset="40%" stop-color="#ffcad4" stop-opacity="0.45"/>
+                <stop offset="75%" stop-color="#9ED4D1" stop-opacity="0.15"/>
+                <stop offset="100%" stop-color="#9ED4D1" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="waterStreamGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fff9e6" stop-opacity="0.9"/>
+                <stop offset="40%" stop-color="#9ED4D1" stop-opacity="0.65"/>
+                <stop offset="85%" stop-color="#ffcad4" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#9ED4D1" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="rosePetal" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#fff9e6"/>
+                <stop offset="55%" stop-color="#ffcad4"/>
+                <stop offset="100%" stop-color="#ff5c8a"/>
+              </linearGradient>
+              <linearGradient id="icePetal" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="55%" stop-color="#d8e2dc"/>
+                <stop offset="100%" stop-color="#7bdff2"/>
+              </linearGradient>
+              <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3" result="b"/>
+                <feComposite in="SourceGraphic" in2="b" operator="over"/>
+              </filter>
+            </defs>
+            <path d="M 28 450 L 28 165 A 162 162 0 0 1 352 165 L 352 450" fill="none" stroke="rgba(255,202,212,0.16)" stroke-width="1" stroke-dasharray="4 3"/>
+            <path d="M 42 450 L 42 170 A 148 148 0 0 1 338 170 L 338 450" fill="none" stroke="rgba(158,212,209,0.12)" stroke-width="0.8"/>
+            <g class="astrolabe-spin" id="astroOuter">
+              <circle cx="190" cy="155" r="96" fill="none" stroke="rgba(255, 202, 212, 0.25)" stroke-width="1" stroke-dasharray="8 6 2 6"/>
+              <circle cx="190" cy="155" r="76" fill="none" stroke="rgba(158, 212, 209, 0.22)" stroke-width="0.8"/>
+              <polygon points="190,59 273,203 107,203" fill="none" stroke="rgba(255, 249, 230, 0.14)" stroke-width="0.8"/>
+              <polygon points="190,251 273,107 107,107" fill="none" stroke="rgba(255, 249, 230, 0.14)" stroke-width="0.8"/>
+            </g>
+            <g class="astrolabe-spin-rev" id="astroInner">
+              <circle cx="190" cy="155" r="54" fill="none" stroke="rgba(255, 249, 230, 0.3)" stroke-width="1" stroke-dasharray="3 5"/>
+            </g>
+            <circle id="sleepHalo" cx="190" cy="155" r="75" fill="url(#haloGrad)"/>
+            <path id="waterCascade" d="M 182 165 Q 190 260 174 375 L 206 375 Q 190 260 198 165 Z" fill="url(#waterStreamGrad)" filter="url(#glow)"/>
+            <path id="moonBody" d="M 172 125 A 34 34 0 1 0 218 172 A 27 27 0 1 1 172 125 Z" fill="#fff9e6" filter="url(#glow)"/>
+            <g id="weightPrisms"></g>
+            <g id="lotusGroup"></g>
+            <g id="archFlowersGroup"></g>
+          </svg>
+          <div class="home-note" id="todayNote" hidden></div>
+        </div>
+      </div>
+      <div class="home-widgets">
+        <section class="panel home-widget" aria-labelledby="homeTodosTitle">
+          <div class="panel-title"><h2 id="homeTodosTitle">待办事项</h2><button class="secondary-button home-todo-add" id="toggleHomeTodoForm" type="button" aria-expanded="false" aria-controls="homeTodoForm">＋ 添加待办</button></div>
+          <form class="home-todo-form" id="homeTodoForm" hidden>
+            <label class="home-todo-input-label" for="homeTodoContent">待办内容</label>
+            <input class="field-control" id="homeTodoContent" name="content" type="text" maxlength="120" placeholder="写下今天想完成的事" required>
+            <div class="home-todo-form-actions"><button class="primary-button" type="submit">保存待办</button><button class="secondary-button" id="cancelHomeTodo" type="button">取消</button></div>
+          </form>
+          <div class="home-list" id="homeTodoList"></div>
+        </section>
+        <section class="panel home-widget home-weather-widget" aria-labelledby="homeWeatherTitle">
+          <div class="panel-title"><h2 id="homeWeatherTitle">天气预报</h2><small id="homeWeatherRange">WAITING FOR AI</small></div>
+          <div id="homeWeatherChart" class="home-weather-chart" role="img" aria-label="天气预报图表"></div>
+        </section>
+        <section class="panel home-widget" aria-labelledby="homeFavoritesTitle">
+          <div class="panel-title"><h2 id="homeFavoritesTitle">收藏信息</h2><small>SAVED FOR YOU</small></div>
+          <div class="home-list" id="homeFavoritesList"></div>
+        </section>
+      </div>
+    </section>
+
+      <!-- 睡眠页：填写睡眠时间与感受，并查看最近记录。 -->
+      <section class="view" id="view-sleep">
+        <div class="page-heading"><div><div class="eyebrow">REST & RECOVERY · 02</div><h1>睡眠 <em>☾</em></h1></div><div class="date-label" id="sleepCount">0 条记录</div></div>
+        <div class="daily-entry-actions"><button class="daily-entry-button" type="button" data-daily-entry="sleep">每日一记</button><button class="daily-entry-button" type="button" id="analyzeSleep">分析睡眠</button><span class="small-muted" id="sleepAnalysisStatus" role="status" aria-live="polite"></span></div>
+        <div class="grid-2">
+          <div class="panel"><div class="panel-title"><h2>添一条睡眠记录</h2><small>SLEEP LOG</small></div><form id="sleepForm"><div class="form-grid">
+            <div class="field"><label for="sleepDate">日期</label><input type="date" id="sleepDate" required></div>
+            <div class="field"><label for="sleepHours">睡眠时长（小时）</label><input type="number" id="sleepHours" min="0" max="24" step=".01" placeholder="填时间后自动计算"></div>
+            <div class="field"><label for="sleepStart">入睡时间（选填）</label><input type="time" id="sleepStart"></div>
+            <div class="field"><label for="sleepEnd">醒来时间（选填）</label><input type="time" id="sleepEnd"></div>
+            <div class="field full"><label for="sleepQuality">醒来后的感觉</label><select id="sleepQuality"><option value="">选择一项（可不选）</option><option>不困，有力气</option><option>困，有力气</option><option>不困，没力气</option><option>困，没力气</option></select></div>
+          </div><div class="form-actions"><button class="primary-button">保存记录</button><button type="reset" class="secondary-button">清空表单</button></div></form></div>
+          <div class="panel"><div class="panel-title"><h2>最近的休息</h2><small>AT A GLANCE</small></div><div class="sleep-dial" id="sleepDial"><svg class="sleep-dial-ring" viewBox="0 0 136 136" aria-hidden="true"><defs><linearGradient id="sleepDialProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e7b9ca"/><stop offset="100%" stop-color="#b9c9df"/></linearGradient></defs><circle class="sleep-dial-halo" cx="68" cy="68" r="60"/><circle class="sleep-dial-outline" cx="68" cy="68" r="62"/><circle class="sleep-dial-track" cx="68" cy="68" r="56"/><circle class="sleep-dial-progress" id="sleepDialProgress" cx="68" cy="68" r="56"/></svg><div class="sleep-dial-inner"><strong id="sleepAvg">—</strong><span id="sleepDialLabel">最近 5 天日均 / 10 小时</span></div></div><div class="small-muted sleep-average-note" id="sleepAverageNote">平均值只用于回顾，不代表你必须达到的目标。</div><div id="sleepTimelineChart" class="sleep-timeline-chart" aria-label="最近五天每日总睡眠时段图"></div><div id="sleepAnalysisFeed" class="sleep-analysis-feed"></div><div class="record-list" id="sleepList"></div></div>
+        </div>
+      </section>
+
+      <!-- 饮食页：记录食物、饮品以及当时的感受。 -->
+      <section class="view" id="view-food">
+        <div class="page-heading"><div><div class="eyebrow">LITTLE NOURISHMENTS · 03</div><h1>饮食 <em>❀</em></h1></div><div class="date-label" id="foodCount">0 条记录</div></div>
+        <div class="daily-entry-actions"><button class="daily-entry-button" type="button" data-daily-entry="food">每日一记</button><button class="daily-entry-button" type="button" data-daily-entry="nutrition-goals">设置营养指标</button><button class="daily-entry-button" type="button" id="toggleFoodReview">回顾数据</button><input type="date" id="foodReviewDate" aria-label="选择要回顾的饮食日期" hidden><button class="daily-entry-button" type="button" id="analyzeFood">分析今日饮食</button><span class="small-muted" id="foodAnalysisStatus" role="status" aria-live="polite"></span></div>
+        <div class="panel food-entry-panel"><div class="panel-title"><h2>今天吃了什么？</h2><small>FOOD DIARY</small></div><form id="foodForm"><div class="form-grid food-form-grid">
+          <div class="field"><label for="foodDate">日期</label><input type="date" id="foodDate" required></div>
+          <div class="field"><label for="foodTime">时间</label><input type="time" id="foodTime"></div>
+          <div class="field"><label for="foodFeeling">进食感受（选填）</label><select id="foodFeeling"><option value="">不填写</option><option>满足</option><option>一般</option><option>没什么胃口</option><option>胃部不舒服</option></select></div>
+          <div class="field"><label for="foodWater">饮水量（ml，选填）</label><input type="number" id="foodWater" min="0" max="10000" step="50" placeholder="例如 250"></div>
+          <div class="field full"><label for="foodContent">食物 / 饮品</label><textarea id="foodContent" placeholder="例如：米饭、鸡蛋、热巧克力……" required></textarea></div>
+          <div class="field"><label for="foodNote">份量（选填）</label><input id="foodNote" placeholder="例如：一碗、半杯、约 150 克"></div>
+          <div class="field"><label for="foodCategory">饮食类别（选填）</label><select id="foodCategory"><option value="">不填写</option><option value="正餐">正餐</option><option value="零嘴">零嘴</option><option value="饮品">饮品</option><option value="其他">其他</option></select></div>
+          <div class="field full"><label for="foodRemark">备注（选填）</label><textarea id="foodRemark" rows="2" placeholder="补充这条饮食记录的其他信息"></textarea></div>
+        </div><div class="form-actions"><button class="primary-button">保存记录</button><button type="reset" class="secondary-button">清空表单</button></div></form></div>
+        <div class="panel nutrition-goals-panel"><div class="panel-title"><h2>每日营养摄入目标</h2><small>YOUR DAILY GOALS</small></div><p class="small-muted">按个人需要设置；未填写的项目不参与营养目标进度计算。饮水目标也会用于今日小笺动画。</p><form id="nutritionGoalsForm"><div class="form-grid nutrition-goals-grid">
+          <div class="field"><label for="goalWaterMl">饮水（ml）</label><input id="goalWaterMl" type="number" min="0" max="20000" step="50" placeholder="2000"></div>
+          <div class="field"><label for="goalCaloriesKcal">能量（kcal）</label><input id="goalCaloriesKcal" type="number" min="0" max="20000" step="10" placeholder="未设置"></div>
+          <div class="field"><label for="goalProteinG">蛋白质（g）</label><input id="goalProteinG" type="number" min="0" max="1000" step="1" placeholder="未设置"></div>
+          <div class="field"><label for="goalCarbohydrateG">碳水化合物（g）</label><input id="goalCarbohydrateG" type="number" min="0" max="1000" step="1" placeholder="未设置"></div>
+          <div class="field"><label for="goalFatG">脂肪（g）</label><input id="goalFatG" type="number" min="0" max="1000" step="1" placeholder="未设置"></div>
+          <div class="field"><label for="goalFiberG">膳食纤维（g）</label><input id="goalFiberG" type="number" min="0" max="1000" step="1" placeholder="未设置"></div>
+        </div><div class="form-actions"><button class="primary-button" type="submit">保存每日目标</button></div></form></div>
+        <div class="panel food-analysis" id="foodAnalysis" style="margin-top:18px"><div class="nutrition-goal-progress" id="nutritionGoalProgress"></div><div class="food-analysis-result"><div class="panel-title"><h2>饮食分析结果</h2><small id="foodAnalysisDate">等待饮食分析</small></div><div class="food-analysis-summary" id="foodAnalysisSummary"></div><div class="nutrition-grid" id="nutritionGrid"></div><div class="food-meal-estimates" id="foodMealEstimates"></div><div class="small-muted" id="foodAnalysisNote" style="margin-top:14px"></div></div></div>
+        <div class="panel food-diary-panel"><div class="panel-title"><h2>饮食小日记</h2><small>RECENT ENTRIES</small></div><div class="record-list" id="foodList"></div></div>
+      </section>
+
+      <!-- 排便页：记录时间、身体感受和可选备注。 -->
+      <section class="view" id="view-bowel">
+        <div class="page-heading"><div><div class="eyebrow">BODY NOTES · 04</div><h1>排便记录 <em>♡</em></h1></div><div class="date-label" id="bowelCount">0 条记录</div></div>
+        <div class="daily-entry-actions"><button class="daily-entry-button" type="button" data-daily-entry="bowel">每日一记</button></div>
+        <div class="grid-2">
+          <div class="panel"><div class="panel-title"><h2>新增记录</h2><small>BODY LOG</small></div><form id="bowelForm"><div class="form-grid">
+            <div class="field"><label for="bowelDate">日期</label><input type="date" id="bowelDate" required></div>
+            <div class="field"><label for="bowelTime">时间</label><input type="time" id="bowelTime"></div>
+            <div class="field"><label for="bowelFormType">大致形态（选填）</label><select id="bowelFormType"><option value="">不填写</option><option>偏硬 / 干燥</option><option>成形</option><option>偏软</option><option>稀便</option><option>水样</option></select></div>
+            <div class="field"><label for="bowelFeeling">身体感受</label><select id="bowelFeeling"><option>正常</option><option>费力</option><option>腹痛</option><option>腹胀</option><option>有未排尽感</option><option>其他不适</option></select></div>
+            <div class="field full"><label for="bowelNote">备注（选填）</label><textarea id="bowelNote" placeholder="例如：是否有腹痛、近期饮食变化等"></textarea></div>
+          </div><div class="form-actions"><button class="primary-button">保存记录</button><button type="reset" class="secondary-button">清空表单</button></div></form></div>
+        </div>
+        <div class="panel bowel-calendar-panel"><div class="panel-title"><h2 id="bowelMonthTitle">本月节律</h2><div style="display:flex;gap:6px"><button class="secondary-button" id="bowelPrevMonth" type="button" aria-label="上个月" style="padding:5px 10px">←</button><button class="secondary-button" id="bowelNextMonth" type="button" aria-label="下个月" style="padding:5px 10px">→</button></div></div><div class="joy-calendar" id="bowelCalendar"></div><div class="joy-legend bowel-legend"><span class="bowel-legend-dot"></span>有排便记录</div></div>
+        <div class="panel bowel-recent-panel"><div class="panel-title"><h2>近期记录</h2><small>RECENT ENTRIES</small></div><div class="record-list" id="bowelList"></div></div>
+      </section>
+
+      <section class="view" id="view-fridge">
+        <div class="page-heading"><div><div class="eyebrow">A LITTLE CORNER · 05</div><h1>冰箱 <em>▣</em></h1></div></div>
+        <div class="daily-entry-actions"><button class="daily-entry-button" type="button" data-daily-entry="fridge">每日一记</button><button class="daily-entry-button" type="button" id="viewFridgeInventory">查看库存</button><button class="daily-entry-button" type="button" id="organizeFridge">整理冰箱</button><button class="secondary-button" type="button" id="shuffleFridgeSpacing" hidden>随机间距</button></div>
+        <div class="fridge-display-panel">
+          <div class="fridge-display-tools"><span class="small-muted" id="fridgeOrganizerStatus" role="status" aria-live="polite">图案保存在本地 SVG 库；整理后才会摆入冰箱。</span></div>
+          <svg class="fridge-wireframe-svg" id="fridgeWireframe" viewBox="0 0 1000 810" role="img" aria-label="透明线框四层冰箱及库存食材插画">
+            <defs>
+              <linearGradient id="fridgePinkWhiteLine" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fff4f9"/><stop offset="50%" stop-color="#f7cce0"/><stop offset="100%" stop-color="#ffeaf3"/></linearGradient>
+              <linearGradient id="fridgeChickenStroke" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#ff78b0"/><stop offset="50%" stop-color="#ffc2dc"/><stop offset="100%" stop-color="#ffffff"/></linearGradient>
+              <g id="fridgeDynamicMasks"></g>
+            </defs>
+            <g id="fridgeFrame">
+              <g id="fridgeBackWall">
+                <rect x="115" y="48" width="770" height="704" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2.2" stroke-linejoin="round"/>
+                <rect x="440" y="72" width="120" height="10" rx="5" fill="none" stroke="#f5c6dc" stroke-width="1.3" opacity=".7"/>
+                <rect x="440" y="92" width="120" height="10" rx="5" fill="none" stroke="#f5c6dc" stroke-width="1.3" opacity=".7"/>
+                <rect x="440" y="250" width="120" height="10" rx="5" fill="none" stroke="#f5c6dc" stroke-width="1.3" opacity=".7"/>
+                <rect x="440" y="430" width="120" height="10" fill="none" stroke="#f5c6dc" stroke-width="1.3" opacity=".7"/>
+                <rect x="440" y="610" width="120" height="10" fill="none" stroke="#f5c6dc" stroke-width="1.3" opacity=".7"/>
+              </g>
+              <polygon points="45,12 955,12 885,48 115,48" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2.4" stroke-linejoin="round"/>
+              <polygon points="350,20 650,20 632,38 368,38" fill="none" stroke="#ffeaf3" stroke-width="1.6" stroke-linejoin="round"/>
+              <polygon points="45,12 115,48 115,752 45,796" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2.4" stroke-linejoin="round"/>
+              <polygon points="885,48 955,12 955,796 885,752" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2.4" stroke-linejoin="round"/>
+              <polygon id="fridgeBottomFrame" points="115,752 885,752 955,796 45,796" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2.4" stroke-linejoin="round"/>
+              <g id="fridgeShelf-1"><g class="fridge-shelf-back"><polyline points="58,214 115,188 885,188 942,214" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2" stroke-linejoin="round"/><line x1="175" y1="192" x2="145" y2="210" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><line x1="760" y1="192" x2="730" y2="210" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></g><rect x="58" y="214" width="884" height="7" rx="3" fill="none" stroke="#ffeaf3" stroke-width="2"/></g>
+              <g id="fridgeShelf-2"><g class="fridge-shelf-back"><polyline points="58,394 115,366 885,366 942,394" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2" stroke-linejoin="round"/><line x1="260" y1="370" x2="230" y2="390" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><line x1="680" y1="370" x2="650" y2="390" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></g><rect x="58" y="394" width="884" height="7" rx="3" fill="none" stroke="#ffeaf3" stroke-width="2"/></g>
+              <g id="fridgeShelf-3"><g class="fridge-shelf-back"><polyline points="58,576 115,546 885,546 942,576" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2" stroke-linejoin="round"/><line x1="210" y1="550" x2="180" y2="572" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><line x1="720" y1="550" x2="690" y2="572" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></g><rect x="58" y="576" width="884" height="7" rx="3" fill="none" stroke="#ffeaf3" stroke-width="2"/></g>
+              <g id="fridgeShelf-4"><g class="fridge-shelf-back"><polyline points="58,766 115,732 885,732 942,766" fill="none" stroke="url(#fridgePinkWhiteLine)" stroke-width="2" stroke-linejoin="round"/><line x1="310" y1="736" x2="280" y2="760" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/><line x1="650" y1="736" x2="620" y2="760" stroke="#ffeaf3" stroke-width="1.5" stroke-linecap="round" opacity=".7"/></g><rect x="58" y="766" width="884" height="8" rx="3" fill="none" stroke="#ffeaf3" stroke-width="2.2"/></g>
+            </g>
+            <g id="fridgeFoods-1"></g><g id="fridgeFoods-2"></g><g id="fridgeFoods-3"></g><g id="fridgeFoods-4"></g>
+          </svg>
+        </div>
+        <div class="grid-2 fridge-widgets">
+          <div class="panel fridge-list-panel"><div class="panel-title"><h2>变动记录</h2><small>RECENT CHANGES</small></div><div class="fridge-list" id="fridgeConsumptionList"></div></div>
+        </div>
+        <dialog class="role-manager-dialog fridge-inventory-dialog" id="fridgeInventoryDialog" aria-labelledby="fridgeInventoryTitle">
+          <div class="role-manager-content">
+            <div class="panel-title"><div><h2 id="fridgeInventoryTitle">现有库存</h2><small>每项可用逗号、顿号、分号或换行隔开；删除某项后保存即可移出库存，不生成消耗记录</small></div><button class="secondary-button" type="button" id="closeFridgeInventory">关闭</button></div>
+            <form id="fridgeInventoryForm">
+              <div class="field"><label for="fridgeInventoryText">库存清单</label><textarea id="fridgeInventoryText" rows="5" placeholder="豆腐两块；200ml牛奶两瓶"></textarea><small class="small-muted">直接用自然表达记录即可，系统会识别份量、名称、数量和量词；多项用逗号、顿号、分号或换行分开，例如“豆腐两块，200ml牛奶两瓶”。</small></div>
+              <div class="form-actions"><button class="primary-button" type="submit">保存库存</button></div>
+            </form>
+          </div>
+        </dialog>
+        <div class="panel fridge-entry-panel" id="fridgeEntryPanel">
+          <div class="fridge-entry-forms">
+            <form id="fridgeStockForm" class="panel fridge-entry-card">
+              <div class="panel-title"><h2>加入现有食材</h2><small>ADD STOCK</small></div>
+              <div class="field"><label for="fridgeStockText">食材、份量与数量</label><textarea id="fridgeStockText" rows="3" placeholder="豆腐两块；200ml牛奶两瓶" required></textarea><small class="small-muted">直接用自然表达记录即可，系统会识别份量、名称、数量和量词；多项用逗号、顿号、分号或换行分开，例如“豆腐两块，200ml牛奶两瓶”。</small></div>
+              <div class="field"><label for="fridgeStockDate">日期</label><input id="fridgeStockDate" type="date" required></div>
+              <div class="form-actions"><button class="primary-button" type="submit">加入食材</button></div>
+            </form>
+            <form id="fridgeConsumeForm" class="panel fridge-entry-card">
+              <div class="panel-title"><h2>记录食品消耗</h2><small>UPDATE STOCK</small></div>
+              <div class="form-grid fridge-form-grid">
+                <div class="field"><label for="fridgeConsumeDate">日期</label><input id="fridgeConsumeDate" type="date" required></div>
+                <div class="field full"><label for="fridgeConsumeItem">选择食材</label><select id="fridgeConsumeItem" required></select><small class="small-muted" id="fridgeConsumeStock"></small></div>
+                <div class="field"><label for="fridgeConsumeMode">按什么单位消耗</label><select id="fridgeConsumeMode"><option value="amount">按份量</option><option value="package">按量词</option></select></div>
+                <div class="field"><label for="fridgeConsumeValue">消耗数量</label><input id="fridgeConsumeValue" type="text" inputmode="text" maxlength="40" placeholder="例如：50ml、半瓶、三分之一袋、一块" required></div>
+              </div>
+              <div class="form-actions"><button class="primary-button" type="submit">记录消耗</button></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- 体重页：保存个人记录，不设置目标或评价。 -->
+      <section class="view" id="view-weight">
+        <div class="page-heading"><div><div class="eyebrow">GENTLE TRACKING · 05</div><h1>体重记录 <em>⌁</em></h1></div><div class="date-label" id="weightCount">0 条记录</div></div>
+        <div class="panel weight-chart"><div class="panel-title"><h2 id="weightChartTitle">体重变化</h2><small id="weightChartRange">记录趋势</small></div><div id="weightChart" class="weight-chart-content" role="img" aria-label="体重变化趋势图"></div></div>
+        <div class="grid-2">
+          <div class="panel"><div class="panel-title"><h2>记录一次体重</h2><small>WEIGHT LOG</small></div><form id="weightForm"><div class="form-grid">
+            <div class="field"><label for="weightDate">日期</label><input type="date" id="weightDate" required></div>
+            <div class="field"><label for="weightValue">体重（kg）</label><input type="number" id="weightValue" min="0" max="500" step=".1" placeholder="可选记录" required></div>
+          </div><div class="form-actions"><button class="primary-button">保存记录</button><button type="reset" class="secondary-button">清空表单</button></div></form></div>
+          <div class="panel weight-diary"><div class="panel-title"><h2>体重日记</h2><small>NO GOALS, JUST NOTES</small></div><div id="weightLatest"></div><div class="record-list weight-record-list" id="weightList"></div></div>
+        </div>
+      </section>
+
+      <!-- 聊天页：提供本地预览聊天、表情菜单和更多操作入口。 -->
+      <section class="view active" id="view-chat">
+        <div class="chat-shell" id="chat-shell">
+          <aside class="chat-aside"><div class="chat-avatar">♡</div><h3 id="chatPersonaName">温柔陪伴</h3><p>一个可以慢慢说话的角落。你可以调整人设、指令和记忆偏好。</p><span class="tag" id="apiStatusTag">尚未连接 API</span><div style="margin-top:18px"><button class="secondary-button" data-goto="settings">前往 API 设置 ↗</button></div><div class="small-muted" style="margin-top:18px">配置模型地址和 API Key 后可发送消息；记忆与记录默认保存在当前浏览器。</div></aside>
+          <div class="chat-main">
+            <div class="inner-dust" aria-hidden="true"><canvas id="dustCanvas"></canvas></div>
+            <span class="corner-star tl" aria-hidden="true"></span><span class="corner-star tr" aria-hidden="true"></span><span class="corner-star bl" aria-hidden="true"></span><span class="corner-star br" aria-hidden="true"></span>
+            <div class="chat-top">
+              <div><strong>给今天的你</strong><div class="small-muted" style="margin-top:4px"><span class="online-dot"></span>一个慢慢整理思绪的地方</div></div>
+              <div class="chat-actions">
+                <button class="chat-tool" id="voiceCallOpen" type="button" aria-label="语音通话" title="语音通话">☎</button>
+                <button class="chat-tool" id="readModeToggle" type="button" aria-label="朗读模式" aria-pressed="false" title="开启朗读模式">♫</button>
+                <button class="chat-tool chat-request-button" id="requestAi" type="button" aria-label="请求 AI 回复" title="请求 AI 回复"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M3 11.5 21 3l-8.5 18-2-7.5L3 11.5Z"/><path d="m10.5 13.5 5-5"/></svg></button>
+                <button class="secondary-button" id="clearChat" type="button">清空对话</button>
+              </div>
+            </div>
+            <div class="messages" id="messages"><div class="message ai"><div class="message-content">嗨，欢迎来到这里。🌷<br>目前这是网站的前端原型，还没有真正连接 AI。你可以先试试聊天界面；等接入后端 API 后，再让它读取角色指令和记忆。</div><div class="message-meta"><button class="speak-message" type="button" aria-label="朗读这条消息" title="朗读">♫</button></div></div></div>
+            <div class="chat-compose">
+              <button class="chat-tool" id="emojiToggle" aria-label="表情包" title="表情包">☺</button>
+              <div class="chat-input-wrap"><div class="chat-emoji-menu sticker-menu" id="emojiMenu"><div class="sticker-menu-head"><div class="sticker-category-tabs" id="stickerCategoryTabs" role="tablist" aria-label="表情包分类"></div><div class="sticker-menu-actions"><button type="button" class="chat-tool" id="stickerManage" aria-label="表情包管理" title="管理、导入和多选">＋</button><div class="sticker-actions-menu" id="stickerActionsMenu" hidden><button type="button" data-sticker-action="categories">管理分类</button><button type="button" data-sticker-action="import">批量导入</button><button type="button" data-sticker-action="select">多选管理</button></div></div></div><label class="slime-enable-option"><input id="chatSlimeToggle" type="checkbox"><span>开启表情团子</span></label><div class="sticker-grid" id="stickerGrid"></div>
+              <section class="sticker-manager" id="stickerCategoryManager" hidden><div class="sticker-manager-heading"><strong>分类管理</strong><button type="button" class="secondary-button" data-sticker-close-manager>收起</button></div><div class="sticker-add-category"><input id="newStickerCategoryName" placeholder="新分类名称" aria-label="新分类名称"><button type="button" class="secondary-button" id="addStickerCategory">新增分类</button></div><div class="sticker-category-manager-list" id="stickerCategoryManagerList"></div></section>
+              <section class="sticker-manager" id="stickerImportManager" hidden><div class="sticker-manager-heading"><strong>批量导入</strong><button type="button" class="secondary-button" data-sticker-close-manager>收起</button></div><label class="field"><span>新建分组名称（可选，填写后导入到此分类）</span><input id="stickerImportGroupName" placeholder="留空则使用所选分类"></label><label class="field"><span>导入到分类</span><select id="stickerImportCategory"></select></label><label class="field"><span>表情包列表（每行：名称：URL，也支持名称 URL 或名称URL）</span><textarea id="stickerImportText" rows="5" placeholder="开心：https://example.com/happy.gif&#10;惊讶 https://example.com/wow.png"></textarea></label><div class="sticker-import-actions"><label class="secondary-button" for="stickerBatchFile">从 TXT / DOCX 文档导入</label><input id="stickerBatchFile" type="file" accept=".txt,.docx" multiple hidden><button type="button" class="primary-button" id="importStickerLinks">导入列表</button></div></section>
+              <section class="sticker-manager" id="stickerMultiManager" hidden><div class="sticker-manager-heading"><strong>多选管理</strong><button type="button" class="secondary-button" data-sticker-close-manager>完成</button></div><div class="sticker-multi-actions"><label><input type="checkbox" id="selectAllStickers"> 全选当前分类</label><select id="moveStickerCategory" aria-label="移动到分类"></select><button type="button" class="secondary-button" id="moveSelectedStickers">移动</button><button type="button" class="danger-button" id="deleteSelectedStickers">删除</button></div></section></div><textarea class="chat-input" id="chatInput" rows="1" placeholder="想说什么，都可以慢慢打下来……"></textarea></div>
+              <div class="chat-tools"><button class="chat-tool" id="moreToggle" aria-label="更多" title="更多">＋</button><div class="chat-more-menu" id="chatMoreMenu" role="region" aria-label="更多聊天操作">
+                <div class="chat-menu-shortcuts" id="chatMenuShortcuts">
+                  <button type="button" class="chat-menu-shortcut" data-chat-summary-page="create">✦ 总结</button>
+                  <button type="button" class="chat-menu-shortcut" id="toggleChatSelection" aria-pressed="false">🗑 删除</button>
+                </div>
+                <button type="button" id="healthAttachmentToggle" aria-expanded="false">⌁ 插入健康摘要</button>
+                <button type="button" id="retryChat" title="删除上次 AI 回复及其操作并重新请求">↻ 重新请求</button>
+                <div class="chat-delete-controls" id="chatDeleteControls" hidden>
+                  <div class="chat-delete-modes" role="group" aria-label="消息选择方式">
+                    <button type="button" id="selectIndividualChatMessages" aria-pressed="true">单条</button>
+                    <button type="button" id="toggleChatRangeSelection" aria-pressed="false">范围</button>
+                  </div>
+                  <button type="button" class="danger-button" id="deleteSelectedChatMessages" hidden disabled>删除选中</button>
+                </div>
+                <div class="chat-memory-picker"><strong>发送给 AI 的存档记忆</strong><div class="small-muted">勾选本次聊天要使用的长期记忆存档</div><div id="chatMemoryArchiveChoices"></div><label class="chat-reading-memory-toggle"><input id="autoSwitchBoundMemory" type="checkbox"><span>切换角色时自动切换绑定记忆</span></label><label class="chat-reading-memory-toggle"><input id="chatReadingMemoryEnabled" type="checkbox"><span>发送小说阅读记忆</span></label></div>
+                <div class="chat-menu-divider" aria-hidden="true"></div>
+                <button type="button" class="chat-book-button" id="sharedReadingPlaceholder" aria-label="一起看书" title="一起看书">
+                  <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 7c-2.2-1.6-5.2-2-9-1.2v13c3.8-.8 6.8-.4 9 1.2"/><path d="M12 7c2.2-1.6 5.2-2 9-1.2v13c-3.8-.8-6.8-.4-9 1.2"/><path d="M12 7v13"/></svg>
+                  <span>一起看书</span>
+                </button>
+              </div><button class="primary-button" id="sendChat" aria-label="保存消息，不请求 AI" title="仅保存消息，不请求 AI"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button></div></div>
+            </div>
+          </div>
+        </div>
+        <section class="panel chat-summary-page" id="chatSummaryPage" hidden>
+          <div class="panel-title"><div><h2>聊天总结</h2><small>LONG-TERM CONVERSATION MEMORY</small></div><button class="secondary-button" type="button" id="chatSummaryBack">返回聊天</button></div>
+          <div class="chat-summary-create" id="chatSummaryCreate">
+            <p class="small-muted" id="chatSummaryCount">当前聊天共 0 条记录。</p>
+            <div class="chat-summary-range">
+              <div class="field"><label for="chatSummaryFrom">从第几条</label><input id="chatSummaryFrom" type="number" min="1" step="1"></div>
+              <div class="field"><label for="chatSummaryTo">到第几条</label><input id="chatSummaryTo" type="number" min="1" step="1"></div>
+              <button class="primary-button" type="button" id="runChatSummary">总结所选对话</button>
+            </div>
+            <p class="small-muted">按聊天记录条目选择连续范围。总结完成后，原对话仍保留在页面，但不再发送给 AI；总结会保存为长期记忆。</p>
+            <div class="small-muted" id="chatSummaryFeedback" role="status"></div>
+          </div>
+          <div class="chat-summary-list" id="chatSummaryList"></div>
+        </section>
+      </section>
+
+
+      <!-- Joy 日历页：按日期记录次数，并浏览当月日历。 -->
+      <section class="view" id="view-joy">
+        <div class="page-heading"><div><div class="eyebrow">PRIVATE RHYTHM⟡</div><h1>Joy time <em>⎚⩊⎚´</em></h1></div><div class="date-label" id="joyCount">0 次记录</div></div>
+        <div class="daily-entry-actions"><button class="daily-entry-button" type="button" data-daily-entry="joy">每日一记</button></div>
+        <div class="grid-2">
+          <div class="panel"><div class="panel-title"><h2>留下一次记录</h2><small>JOY LOG</small></div><form id="joyForm"><div class="form-grid"><div class="field"><label for="joyDate">日期</label><input type="date" id="joyDate" required></div><div class="field"><label for="joyTime">时间（选填）</label><input type="time" id="joyTime"></div><div class="field"><label for="joyDuration">时长（分钟，选填）</label><input type="number" id="joyDuration" min="0" max="1440" step="1" placeholder="例如 30"></div><div class="field full"><label for="joyNote">备注（选填）</label><textarea id="joyNote" placeholder="可以留空，只记一次也可以。"></textarea></div></div><div class="form-actions"><button class="primary-button">记录一次 ✧</button></div></form><div class="chat-calendar-note">日历只显示每天的记录次数。空心圆代表没有记录，实心圆会随次数增加逐渐加深颜色。</div></div>
+          <div class="panel"><div class="panel-title"><h2 id="joyMonthTitle">本月节律</h2><div style="display:flex;gap:6px"><button class="secondary-button" id="joyPrevMonth" type="button" style="padding:5px 10px">←</button><button class="secondary-button" id="joyNextMonth" type="button" style="padding:5px 10px">→</button></div></div><div class="joy-calendar" id="joyCalendar"></div><div class="joy-legend" style="margin-top:15px"><span style="background:#ffb6c1"></span>1 次 <span style="background:#fffacd;margin-left:8px"></span>2 次 <span style="background:#e46883;margin-left:8px"></span>3 次及以上</div></div>
+        </div>
+        <div class="panel" style="margin-top:18px"><div class="panel-title"><h2>最近的记录</h2><small>YOUR PRIVATE NOTES</small></div><div class="record-list" id="joyList"></div></div>
+      </section>
+
+      <!-- 设置页：管理 API 界面信息、语音偏好、记忆、指令和数据。 -->
+      <section class="view" id="view-settings">
+        <div class="page-heading"><div><div class="eyebrow">MAKE IT YOURS · 08</div><h1>设置 <em>⚙</em></h1><div class="heading-note">慢慢调整成你喜欢的样子。API 密钥不会由此原型发送或保存到服务器。</div></div></div>
+        <div class="setting-tabs">
+          <button class="setting-tab active" data-setting="api">API 连接</button><button class="setting-tab" data-setting="voice">语音设置</button><button class="setting-tab" data-setting="memory">记忆管理</button><button class="setting-tab" data-setting="tokens">Token 管理</button><button class="setting-tab" data-setting="prompt">指令设置</button><button class="setting-tab" data-setting="beauty">美化设置</button><button class="setting-tab" data-setting="svg-library">SVG 库</button><button class="setting-tab" data-setting="data">数据与隐私</button>
+        </div>
+        <div class="setting-pane active" id="setting-api">
+          <div class="panel"><div class="panel-title"><h2>聊天 API 设置</h2><small>CHAT COMPLETIONS</small></div><div class="note" style="margin-bottom:17px">普通聊天首轮不附带健康记录。模型需要数据时会按 HEALTH_QUERY 协议请求；网页仅查询本地白名单数据。API 设置（包括密钥）保存在本地浏览器数据中，并会包含在 JSON 备份里。</div><form id="apiForm"><div class="form-grid">
+            <div class="field"><label for="apiProvider">服务提供方</label><select id="apiProvider"><option value="openai">OpenAI API</option><option value="gemini">Google Gemini API</option><option value="custom">兼容 OpenAI 格式的自定义服务</option></select></div>
+            <div class="field"><label for="apiModel">模型名称</label><input id="apiModel" placeholder="填写聊天模型 ID"><button class="secondary-button model-fetch-button" type="button" id="fetchChatModels">拉取模型</button><select id="chatModelChoices" aria-label="选择已拉取的聊天模型" hidden><option value="">选择模型</option></select></div>
+            <div class="field full"><label for="apiBase">API 地址 / Base URL</label><input id="apiBase" placeholder="例如：https://api.example.com/v1"></div>
+            <div class="field full"><label for="apiKey">API Key</label><input id="apiKey" type="password" autocomplete="off" placeholder="保存在本地数据中"></div>
+          </div><div class="form-actions"><button class="primary-button">保存聊天 API</button><button class="secondary-button" type="button" id="testApi">检查配置</button></div></form><div class="api-preset-row"><div class="field"><label for="chatApiPreset">聊天 API 预设</label><select id="chatApiPreset"><option value="">选择预设</option></select></div><input id="chatApiPresetName" aria-label="聊天 API 预设名称" placeholder="预设名称"><button class="secondary-button" type="button" id="saveChatApiPreset">保存预设</button><button class="danger-button" type="button" id="deleteChatApiPreset">删除预设</button></div><div class="small-muted" id="apiFeedback" role="status" style="margin-top:12px">尚未配置。</div></div>
+          <div class="panel api-analysis-panel"><div class="panel-title"><h2>天气查询</h2><small>LOCAL WEATHER</small></div><div class="note" style="margin-bottom:17px">手动设置所在城市。聊天中询问天气时，网页会将城市名称发送给 Open-Meteo 查询当前天气和未来 7 天预报；无需 API Key。</div><form id="weatherSettingsForm"><div class="form-grid"><div class="field full"><label for="weatherCity">所在城市</label><input id="weatherCity" type="text" maxlength="100" placeholder="例如：上海市 或 Hangzhou"></div></div><div class="form-actions"><button class="primary-button" type="submit">保存城市</button></div></form><div class="small-muted" id="weatherSettingsFeedback" role="status" style="margin-top:12px">尚未设置城市。</div></div>
+          <div class="panel api-analysis-panel"><div class="panel-title"><h2>数据分析 / 记忆总结 API 设置</h2><small>ANALYSIS & SUMMARY</small></div><form id="analysisApiForm"><div class="form-grid">
+            <div class="field"><label for="analysisApiProvider">服务提供方</label><select id="analysisApiProvider"><option value="openai">OpenAI API</option><option value="gemini">Google Gemini API</option><option value="custom">兼容 OpenAI 格式的自定义服务</option></select></div>
+            <div class="field"><label for="analysisApiModel">模型名称</label><input id="analysisApiModel" placeholder="填写分析 / 总结模型 ID"><button class="secondary-button model-fetch-button" type="button" id="fetchAnalysisModels">拉取模型</button><select id="analysisModelChoices" aria-label="选择已拉取的分析模型" hidden><option value="">选择模型</option></select></div>
+            <div class="field full"><label for="analysisApiBase">API 地址 / Base URL</label><input id="analysisApiBase" placeholder="例如：https://api.example.com/v1"></div>
+            <div class="field full"><label for="analysisApiKey">API Key</label><input id="analysisApiKey" type="password" autocomplete="off" placeholder="保存在本地数据中"></div>
+          </div><div class="form-actions"><button class="primary-button">保存分析 API</button></div></form><div class="api-preset-row"><div class="field"><label for="analysisApiPreset">分析 API 预设</label><select id="analysisApiPreset"><option value="">选择预设</option></select></div><input id="analysisApiPresetName" aria-label="分析 API 预设名称" placeholder="预设名称"><button class="secondary-button" type="button" id="saveAnalysisApiPreset">保存预设</button><button class="danger-button" type="button" id="deleteAnalysisApiPreset">删除预设</button></div><div class="small-muted" id="analysisApiFeedback" role="status" style="margin-top:12px">饮食分析、记忆总结、自动对话总结和语音通话总结使用此 API；通话总结复用“聊天总结指令”，但单独保存。</div></div>
+          <div class="panel api-analysis-panel"><div class="panel-title"><h2>食材绘画 API 设置</h2><small>FOOD SVG DRAWING</small></div><div class="note" style="margin-bottom:17px">冰箱整理时，缺少 SVG 图案的食材会由此专用 API 绘制；不会使用聊天或数据分析 API。设置（包括 API Key）保存在本地浏览器数据中，并会包含在 JSON 备份里。</div><form id="drawingApiForm"><div class="form-grid">
+            <div class="field"><label for="drawingApiProvider">服务提供方</label><select id="drawingApiProvider"><option value="openai">OpenAI API</option><option value="gemini">Google Gemini API</option><option value="custom">兼容 OpenAI 格式的自定义服务</option></select></div>
+            <div class="field"><label for="drawingApiModel">绘画模型名称</label><input id="drawingApiModel" placeholder="填写绘画模型 ID"><button class="secondary-button model-fetch-button" type="button" id="fetchDrawingModels">拉取模型</button><select id="drawingModelChoices" aria-label="选择已拉取的绘画模型" hidden><option value="">选择模型</option></select></div>
+            <div class="field full"><label for="drawingApiBase">API 地址 / Base URL</label><input id="drawingApiBase" placeholder="例如：https://api.example.com/v1"></div>
+            <div class="field full"><label for="drawingApiKey">API Key</label><input id="drawingApiKey" type="password" autocomplete="off" placeholder="保存在本地数据中"></div>
+          </div><div class="form-actions"><button class="primary-button">保存绘画 API</button></div></form><div class="small-muted" id="drawingApiFeedback" role="status" style="margin-top:12px">仅缺少食材 SVG 图案时调用。</div></div>
+        </div>
+        <div class="setting-pane" id="setting-voice">
+          <div class="panel"><div class="panel-title"><h2>让文字拥有声音</h2><small>MINIMAX TEXT TO SPEECH</small></div><div class="note" style="margin-bottom:15px">MiniMax TTS 会将 AI 回复文字发送到 MiniMax 合成语音。请使用 MiniMax 开放平台的 API Key；Key 保存在此浏览器本地数据中，也会包含在全部 JSON 备份里，并直接用于请求，不会经过本站服务器。浏览器跨域策略可能拦截直接请求；若出现跨域错误，需要由服务端代理 MiniMax 请求，单纯改用本地静态服务器无法解决。<a href="https://platform.minimaxi.com/docs/api-reference/speech-t2a-http" target="_blank" rel="noopener noreferrer">查看 MiniMax TTS 接口说明</a></div>
+            <div class="toggle-row"><div class="toggle-copy"><strong>朗读 AI 回复</strong><small>新收到的 AI 回复将使用 MiniMax 自动朗读。</small></div><input class="switch" id="voiceOutputToggle" type="checkbox"></div>
+            <div class="form-grid" style="margin-top:17px">
+              <div class="field"><label for="voiceProvider">朗读引擎</label><select id="voiceProvider"><option value="minimax">MiniMax TTS</option><option value="browser">浏览器内置语音</option></select></div>
+              <div class="field"><label for="minimaxVoiceId">音色 Voice ID</label><input id="minimaxVoiceId" list="minimaxVoiceChoices" placeholder="例如：female-shaonv"><datalist id="minimaxVoiceChoices"><option value="female-shaonv">少女</option><option value="female-yujie">御姐</option><option value="male-qn-qingse">青涩青年</option><option value="male-qn-jingying">精英青年</option><option value="presenter_male">男主持人</option><option value="presenter_female">女主持人</option></datalist><small class="small-muted">可填 MiniMax 平台支持的 Voice ID。</small></div>
+              <div class="field"><label for="minimaxVoicePreset">已保存音色</label><select id="minimaxVoicePreset"><option value="">选择已保存的音色</option></select><small class="small-muted">选择后立即切换当前音色。</small></div>
+              <div class="field"><label for="minimaxVoicePresetName">音色预设名称</label><input id="minimaxVoicePresetName" placeholder="例如：温柔女声"></div>
+              <div class="field full"><div class="form-actions" style="margin-top:0"><button class="secondary-button" id="saveVoicePreset" type="button">保存当前音色</button><button class="secondary-button" id="deleteVoicePreset" type="button" disabled>删除所选音色</button></div></div>
+              <div class="field full"><label for="minimaxApiKey">MiniMax API Key</label><input id="minimaxApiKey" type="password" autocomplete="off" placeholder="输入 MiniMax API Key"></div>
+              <div class="field"><label for="minimaxGroupId">Group ID（如账号需要）</label><input id="minimaxGroupId" autocomplete="off" placeholder="可留空"></div>
+              <div class="field full"><label for="minimaxBase">TTS API 地址</label><input id="minimaxBase" type="url" value="https://api.minimax.cn/v1/t2a_v2" placeholder="https://api.minimax.cn/v1/t2a_v2"></div>
+              <div class="field"><label for="minimaxModel">TTS 模型</label><input id="minimaxModel" value="speech-2.8-hd" placeholder="speech-2.8-hd"></div>
+              <div class="field"><label for="minimaxSpeed">语速 <span id="minimaxSpeedValue">1.0</span></label><input id="minimaxSpeed" type="range" min="0.5" max="2" step="0.1" value="1"></div>
+              <div class="field"><label for="minimaxPitch">音调 <span id="minimaxPitchValue">0</span></label><input id="minimaxPitch" type="range" min="-12" max="12" step="1" value="0"></div>
+              <div class="field full"><label for="voiceDirectivePreset">语音指令版本</label><select id="voiceDirectivePreset"><option value="default">默认</option><option value="mature">成熟</option></select></div>
+              <div class="field full"><label for="voiceDirective">语音指令</label><textarea id="voiceDirective" placeholder="告诉 AI 什么时候适合发送语音，以及语音的表达风格"></textarea><small class="small-muted">切换版本后可分别编辑并保存；AI 会根据当前版本决定是否使用 &lt;语音&gt; 标签发送语音消息。</small><div class="form-actions"><button class="secondary-button" id="saveVoiceDirective" type="button">保存当前版本指令</button></div></div>
+              <div class="field full"><label for="voiceNotes">语音备注</label><textarea id="voiceNotes" placeholder="记录喜欢的音色或使用偏好"></textarea></div>
+            </div>
+            <div class="form-actions"><button class="primary-button" id="saveVoice" type="button">保存语音设置</button><button class="secondary-button" id="testVoice" type="button">试听示例</button></div>
+            <p class="small-muted" id="voiceFeedback" role="status" aria-live="polite">填入 MiniMax API Key 和音色 ID 后可试听。</p>
+          </div>
+        </div>
+        <div class="setting-pane" id="setting-memory">
+          <div class="memory-library"><div class="panel-title"><div><h2>记忆库</h2><div class="small-muted">独立保存对话记忆与健康摘要</div></div><div class="form-actions" style="margin:0"><input id="newMemoryArchiveName" placeholder="新存档名称" aria-label="新存档名称"><button class="secondary-button" type="button" id="newMemoryArchive">新增</button><button class="secondary-button" type="button" id="importMemoryFile">导入记忆</button><input id="memoryImportFile" type="file" accept="application/json,.json" hidden></div></div><div class="memory-library-grid" id="memoryArchiveCards"></div><div class="memory-detail panel" id="memoryDetail" hidden>
+            <div class="panel-title"><div><button class="secondary-button" type="button" id="memoryBack">← 返回记忆库</button><h2 id="memoryDetailTitle" style="margin-top:12px">存档记忆</h2><small id="memoryDetailCount"></small></div><div class="form-actions memory-actions" style="margin:0"><button class="secondary-button" type="button" id="deleteSelectedMemories">删除选中</button><button class="primary-button" type="button" id="summarizeSelectedMemories" disabled hidden>总结选中</button><button class="secondary-button" type="button" id="toggleHealthEdit" hidden>编辑</button><button class="primary-button" type="button" id="healthSummarize" hidden>总结</button><button class="danger-button" type="button" id="deleteMemoryArchive" hidden>删除存档</button><button class="danger-button" type="button" id="deleteAllArchiveMemories">一键删除</button></div></div>
+            <div id="healthMemoryControls" class="health-memory-controls" hidden><div class="field"><label for="healthJumpDate">快速定位日期</label><input type="date" id="healthJumpDate"></div><button class="secondary-button" type="button" id="healthJumpButton">定位</button><div class="health-summary-menu" id="healthSummaryMenu" hidden><label class="small-muted" for="healthSummaryPeriod">快速总结</label><select id="healthSummaryPeriod"><option value="week">总结本周</option><option value="month">总结本月</option><option value="year">总结本年</option></select><button class="primary-button" type="button" id="runHealthSummary">开始总结</button><div class="health-summary-range"><label class="small-muted" for="healthSummaryFrom">自选日期范围</label><div><input type="date" id="healthSummaryFrom" aria-label="总结开始日期"><span>至</span><input type="date" id="healthSummaryTo" aria-label="总结结束日期"><button class="secondary-button" type="button" id="runHealthSummaryRange">总结范围</button></div></div></div></div>
+            <form id="memoryForm" class="memory-entry-form"><div class="form-grid"><div class="field"><label for="memoryDate">日期</label><input type="date" id="memoryDate" required></div><div class="field full"><label for="memoryContent">记忆内容</label><textarea id="memoryContent" placeholder="用角色口吻记下已经发生的事" required></textarea></div></div><div class="form-actions"><button class="primary-button">加入当前存档</button></div></form><div class="memory-list" id="memoryList"></div></div></div>
+        </div>
+        <div class="setting-pane" id="setting-tokens">
+          <div class="panel"><div class="panel-title"><h2>Token 使用估算</h2><small>LIVE ESTIMATE</small></div><p class="small-muted">上下文 Token 会随当前角色的聊天记录、系统指令、记忆和设置变化而实时更新。当前上下文包括聊天 AI 可见的指令、角色与用户信息、聊天历史、记忆、表情包上下文及可能附带的天气提示；聊天历史按下方“聊天记录 token 上限”选择。未隐藏健康信息单独估算，因为只有发起健康查询后才会发送查询结果。数值按文本长度估算，真实 token 数以模型分词器为准。</p><div class="token-total-stack"><div class="token-total"><span>当前对话上下文（实时估算）</span><strong id="tokensCurrentRequest">0</strong></div><div class="token-total"><span>当前上下文 + 全部未隐藏健康信息（估算）</span><strong id="tokensWithHealthEstimate">0</strong></div></div><div class="token-breakdown"><div>系统指令与语音规则 token <strong id="instructionTokens">0</strong></div><div>表情包上下文 token <strong id="stickerContextTokens">0</strong></div><div>角色卡与用户信息 token <strong id="roleCardTokens">0</strong></div><div>记忆 token <strong id="archiveMemoryTokens">0</strong></div><div>当前选中聊天历史 token <strong id="chatTokens">0</strong></div><div>未隐藏健康信息（仅查询后附加） <strong id="healthMemoryTokens">0</strong></div></div>
+            <div class="token-settings"><div class="field"><label for="chatHistoryTokenLimit">聊天记录 token 上限</label><input id="chatHistoryTokenLimit" type="number" min="256" max="200000" step="128"></div><div class="field"><label for="autoSummaryTokenThreshold">聊天总结提醒 token 数</label><input id="autoSummaryTokenThreshold" type="number" min="256" max="50000" step="128"></div><div class="field"><label for="healthMemoryAutoSummaryTokenThreshold">健康记忆自动总结 token 数</label><input id="healthMemoryAutoSummaryTokenThreshold" type="number" min="256" max="50000" step="128"></div><button class="primary-button" type="button" id="saveTokenSettings">保存 Token 设置</button></div><p class="small-muted">健康记忆达到阈值后会调用总结 API；隐藏日期不会参与自动总结。聊天达到阈值只提醒，不会自动发送聊天或总结请求。</p>
+          </div>
+          <div class="panel token-hidden-panel"><div class="panel-title"><h2>隐藏健康记录日期</h2><small>只影响发送给 AI 的健康数据</small></div><div class="token-calendar-header"><button class="secondary-button" type="button" id="hiddenPrevMonth">←</button><strong id="hiddenMonthTitle"></strong><button class="secondary-button" type="button" id="hiddenNextMonth">→</button></div><div class="joy-calendar" id="hiddenDateCalendar"></div><p class="small-muted">点击日历日期即可切换隐藏状态；隐藏日期保留在本地记录与健康记忆中，不会提供给 AI。</p><div class="hide-date-range"><div class="field"><label for="hideFromDate">从日期</label><input type="date" id="hideFromDate"></div><div class="field"><label for="hideToDate">到日期</label><input type="date" id="hideToDate"></div><button class="secondary-button" type="button" id="hideDateRange">批量隐藏日期</button></div><div id="hiddenDatesList" class="hidden-dates-list"></div></div>
+        </div>
+        <div class="setting-pane" id="setting-prompt">
+          <div class="panel"><div class="panel-title"><h2>指令与角色</h2><small>PERSONALITY & RULES</small></div><div class="field"><label for="systemPrompt">系统指令（聊天 AI）</label><textarea id="systemPrompt" style="min-height:130px" placeholder="定义聊天 AI 的身份、基本行为原则和回复格式"></textarea></div><div class="field"><label for="readingPrompt">阅读指令（共读段评与讨论）</label><textarea id="readingPrompt" rows="6" placeholder="补充段评风格、关注重点，以及在讨论中主动记录哪些已发生的剧情记忆"></textarea><small class="small-muted">用于共读段评和讨论聊天，与角色设定、用户信息及其他适用指令一并发送。</small><button class="secondary-button" type="button" id="saveReadingPrompt">保存阅读指令</button></div><div class="prompt-presets"><div class="panel-title"><h2>分析指令（总结 API）</h2><small>各功能分开设置，不作用于饮食营养分析</small></div><div class="analysis-prompt-setting"><div class="field"><label for="chatSummaryAnalysisPrompt">聊天对话总结指令</label><textarea id="chatSummaryAnalysisPrompt" rows="5" placeholder="设置手动与自动聊天总结的整理规则"></textarea><button class="secondary-button" type="button" id="saveChatSummaryAnalysisPrompt">保存聊天总结指令</button></div><div class="field"><label for="healthMemoryAnalysisPrompt">健康记忆总结指令</label><textarea id="healthMemoryAnalysisPrompt" rows="5" placeholder="设置健康记忆总结的整理规则"></textarea><button class="secondary-button" type="button" id="saveHealthMemoryAnalysisPrompt">保存健康总结指令</button></div><p class="small-muted">聊天总结指令用于手动及自动对话总结；健康总结指令用于健康记忆总结。饮食营养分析仍使用独立格式指令。</p></div></div><div class="prompt-presets"><div class="panel-title"><h2>自定义指令预设</h2><button class="secondary-button" type="button" id="savePromptPreset">保存当前文本为预设</button></div><div class="field"><label for="customPromptName">预设名称</label><input id="customPromptName" placeholder="例如：温柔提醒"></div><textarea id="customPrompt" style="min-height:100px;margin-top:10px" placeholder="写下需要时才启用的额外指令"></textarea><div class="prompt-preset-list" id="promptPresetList"></div></div><div class="character-presets"><div class="panel-title"><h2>角色预设</h2><button class="secondary-button" type="button" id="saveCharacter">保存当前角色</button></div><div class="form-grid"><div class="field"><label for="characterSelect">切换角色</label><select id="characterSelect"></select></div><div class="field"><label for="characterName">角色名称</label><input id="characterName" placeholder="角色名称"></div><div class="field full"><label for="characterPrompt">角色设定</label><textarea id="characterPrompt" placeholder="描述角色语气、背景和互动方式"></textarea></div></div></div><div class="form-actions"><button class="primary-button" type="button" id="saveSystemPrompt">保存系统指令</button><button class="secondary-button" type="button" id="previewPrompt">预览启用内容</button></div><div id="promptPreview" class="note" style="display:none;margin-top:15px;white-space:pre-wrap;overflow-wrap:anywhere"></div></div>
+          <div class="panel fridge-drawing-prompt-panel"><div class="panel-title"><h2>食材绘制指令</h2><small>FRIDGE ILLUSTRATION</small></div><div class="field"><label for="fridgeDrawingInstructions">生成食材 SVG 时使用的绘制规则</label><textarea id="fridgeDrawingInstructions" rows="5" placeholder="描述食材线稿的形状、颜色、数量词和包装要求"></textarea><small class="small-muted">默认规则会区分单件数量和包装量词（如一颗西红柿与一板鸡蛋）；可在这里继续调整。仅用于缺少食材图案、需要 AI 新绘图时。</small></div><div class="form-actions"><button class="secondary-button" type="button" id="saveFridgeDrawingInstructions">保存绘制指令</button></div></div>
+        </div>
+        <div class="setting-pane" id="setting-beauty">
+          <div class="panel"><div class="panel-title"><h2>页面与聊天外观</h2><small>PERSONAL STYLE</small></div>
+            <div class="form-grid">
+              <div class="field"><label for="chatBlur">聊天磨砂模糊度 <output id="chatBlurValue">18 px</output></label><input id="chatBlur" type="range" min="0" max="32" value="18"></div>
+              <div class="field"><label for="chatOpacity">聊天玻璃透明度 <output id="chatOpacityValue">78%</output></label><input id="chatOpacity" type="range" min="25" max="95" value="78"></div>
+              <div class="field"><label for="chatFontFamily">聊天字体</label><select id="chatFontFamily"><option value="system">系统默认</option><option value="sans">无衬线</option><option value="serif">衬线</option><option value="noto">思源宋体</option><option value="mono">等宽</option></select></div>
+              <div class="field"><label for="chatBubbleFontSize">气泡内字号 <output id="chatBubbleFontSizeValue">13 px</output></label><input id="chatBubbleFontSize" type="range" min="10" max="22" value="13"></div>
+              <div class="field"><label for="chatBubblePaddingY">气泡内上下留白 <output id="chatBubblePaddingYValue">8 px</output></label><input id="chatBubblePaddingY" type="range" min="2" max="20" value="8"></div>
+              <div class="field"><label for="chatMessageGap">消息上下间距 <output id="chatMessageGapValue">8 px</output></label><input id="chatMessageGap" type="range" min="0" max="24" value="8"></div>
+              <div class="field"><label for="chatBubbleGlow">聊天气泡发光程度 <output id="chatBubbleGlowValue">35%</output></label><input id="chatBubbleGlow" type="range" min="0" max="100" value="35"></div>
+              <div class="field"><label for="rainIntensity">背景雨量 <output id="rainIntensityValue">默认</output></label><input id="rainIntensity" type="range" min="0" max="100" value="0"><small class="small-muted">从默认雨量逐渐增加到倾盆大雨。</small></div>
+              <div class="field"><label for="backgroundImage">自定义背景图片</label><input id="backgroundImage" type="file" accept="image/*"><small class="small-muted">图片会压缩后保存在本浏览器。建议选择横向图片。</small><button class="secondary-button" type="button" id="clearBackground">移除背景图片</button></div>
+              <div class="field full"><label for="chatBubbleCss">聊天气泡 CSS</label><textarea id="chatBubbleCss" class="custom-style-input" placeholder="可填写完整 CSS 规则，例如：&#10;.message-bubble .content { padding: 8px 16px; }&#10;.message-bubble .content::before { content: ''; }"></textarea><small class="small-muted">支持完整选择器、伪元素和外链图片。旧格式的属性声明也可继续使用。</small></div>
+              <div class="field full"><label for="chatBubblePresetSelect">气泡样式预设</label><div class="bubble-preset-controls"><select id="chatBubblePresetSelect" aria-label="选择气泡样式预设"><option value="">选择样式预设</option></select><input id="chatBubblePresetName" placeholder="新预设名称" aria-label="新预设名称"><button class="secondary-button" type="button" id="saveBubblePreset">保存为预设</button><button class="secondary-button" type="button" id="applyBubblePreset" disabled>应用</button><button class="danger-button" type="button" id="deleteBubblePreset" disabled>删除预设</button></div></div>
+            </div>
+            <div class="form-actions"><button class="primary-button" type="button" id="saveAppearance">保存美化设置</button><button class="secondary-button" type="button" id="resetAppearance">恢复默认</button></div>
+            <div class="small-muted" id="appearanceFeedback" role="status" style="margin-top:10px">设置只保存在当前浏览器中。</div>
+          </div>
+        </div>
+        <div class="setting-pane" id="setting-data">
+          <div class="panel"><div class="panel-title"><h2>数据与隐私</h2><small>YOUR DATA, YOUR CHOICE</small></div><div class="note">本原型使用浏览器 localStorage 保存记录和 API 密钥，仅保存在当前浏览器环境中。它不是加密保险箱；API 密钥也会包含在 JSON 导出备份里，请妥善保管备份文件，不要在共享设备上保存敏感内容。正式版本应提供登录、后端数据库、访问控制和可靠的备份方案。</div><div class="form-actions" style="margin-top:18px"><button class="primary-button" id="exportData">导出全部数据（JSON）</button><label class="secondary-button" for="importFile">导入备份</label><input id="importFile" type="file" accept="application/json,.json" hidden><button class="secondary-button" id="exportCsv">导出健康记录（CSV）</button></div><div class="toggle-row" style="margin-top:15px"><div class="toggle-copy"><strong>减少动画</strong><small>关闭星光闪烁等装饰动画。</small></div><input class="switch" id="reduceMotion" type="checkbox"></div><div style="margin-top:18px"><button class="danger-button" id="clearAll">清空本地全部数据</button><p class="small-muted">清空前建议先导出备份。此操作无法撤销。</p></div></div>
+        </div>
+        <div class="setting-pane" id="setting-svg-library">
+          <div class="panel"><div class="panel-title"><div><h2>食材 SVG 图库</h2><small>LOCAL FOOD ARTWORKS</small></div><span class="small-muted" id="fridgeSvgLibraryCount">0 个图案</span></div><p class="small-muted">图案只保存在本地 SVG 库，不会自动出现在冰箱；点击“整理冰箱”后才会按库存摆放。图案会随 JSON 备份一起导出。</p><div class="fridge-svg-library-grid" id="fridgeSvgLibrary"></div></div>
+        </div>
+      </section>
+      <!-- 页面底部的品牌文字。 -->
+      <div class="footer">MADE OF LITTLE MOMENTS　✧　PETAL JOURNAL</div>
+    </main>
+  </div>
+</div>
+<section class="shared-reading-page" id="sharedReadingPage" aria-label="一起看书" hidden>
+  <div class="reading-atmosphere" id="readingAtmosphere" aria-hidden="true">
+    <canvas id="readingRainCanvas"></canvas>
+    <canvas id="readingSnowCanvas"></canvas>
+  </div>
+  <header class="shared-reading-topbar">
+    <button class="shared-reading-back" id="sharedReadingBack" type="button">返回</button>
+    <nav class="shared-reading-toolbar" aria-label="共读工具">
+      <button type="button" data-reading-action="import" aria-label="导入书籍" title="导入书籍"><span aria-hidden="true">↥</span></button>
+      <button type="button" data-reading-action="shelf" aria-label="书架" title="书架"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 5v14M12 5v14M16 5v14"/></svg></button>
+      <button type="button" data-reading-action="highlight" aria-label="划线" title="选中文字后划线"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m4 16 9.8-9.8a2.1 2.1 0 0 1 3 3L7 19H4z"/><path d="m12.5 7.5 4 4M3 21h18"/></svg></button>
+      <button type="button" data-reading-action="request" aria-label="请求 AI 陪读" title="请求 AI 陪读"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2.8-7.2L3 11Z"/><path d="m10.2 13.8 4.3-4.3"/></svg></button>
+      <button type="button" data-reading-action="thought" aria-label="感想" title="感想"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M3.5 11a8.5 8.5 0 1 1 2.2 5.7"/><path d="M3.5 4.5V11h6.5"/><path d="M12 7v5l3.2 2"/></svg></button>
+      <button type="button" data-reading-action="discussion" aria-label="讨论" title="讨论"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H6l-3 2v-6.5A7.5 7.5 0 1 1 20 11.5Z"/><circle cx="8" cy="11.5" r=".8" fill="currentColor" stroke="none"/><circle cx="12" cy="11.5" r=".8" fill="currentColor" stroke="none"/><circle cx="16" cy="11.5" r=".8" fill="currentColor" stroke="none"/></svg></button>
+      <button type="button" data-reading-action="memory" aria-label="记忆" title="记忆"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 4.2a3.3 3.3 0 0 0-5.8 2A3.5 3.5 0 0 0 4 12a3.5 3.5 0 0 0 2.2 5.8A3.3 3.3 0 0 0 12 20"/><path d="M12 4.2a3.3 3.3 0 0 1 5.8 2A3.5 3.5 0 0 1 20 12a3.5 3.5 0 0 1-2.2 5.8A3.3 3.3 0 0 1 12 20"/><path d="M12 4v16M8 9.5c1.8 0 2.4 1.1 2.4 2.5M16 9.5c-1.8 0-2.4 1.1-2.4 2.5M8.5 15c1.2 0 1.8-.5 2-1.5M15.5 15c-1.2 0-1.8-.5-2-1.5"/></svg><span class="reading-memory-count" id="readingMemoryCount">0</span></button>
+      <button type="button" data-reading-action="beautify" aria-label="设置" title="设置"><span aria-hidden="true">⚙</span></button>
+    </nav>
+  </header>
+  <main class="shared-reading-main">
+    <div class="reading-book-stage">
+      <div class="reading-book-wrapper">
+        <svg class="reading-coils" viewBox="0 0 56 600" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <radialGradient id="reading-hole-depth" cx="60%" cy="55%" r="55%">
+              <stop offset="0%" stop-color="#34373b"/><stop offset="70%" stop-color="#777b80"/><stop offset="100%" stop-color="#b5b8bb"/>
+            </radialGradient>
+            <linearGradient id="reading-wire-metal" x1="0%" y1="0%" x2="100%" y2="85%">
+              <stop offset="0%" stop-color="#777b80"/><stop offset="25%" stop-color="#e4e6e8"/><stop offset="48%" stop-color="#fff"/><stop offset="74%" stop-color="#a8acb0"/><stop offset="100%" stop-color="#62666b"/>
+            </linearGradient>
+            <filter id="reading-coil-shadow" x="-30%" y="-30%" width="160%" height="160%">
+              <feDropShadow dx="2" dy="3" stdDeviation="2" flood-color="#000" flood-opacity=".42"/>
+            </filter>
+            <g id="reading-coil-ring">
+              <path d="M22 -8 C7 -8 6 6 22 8" fill="none" stroke="#52565a" stroke-width="3.2" stroke-linecap="round"/>
+              <circle cx="35" cy="0" r="6.2" fill="url(#reading-hole-depth)"/>
+              <circle cx="35" cy="0" r="6.2" fill="none" stroke="rgba(255,255,255,.52)" stroke-width=".9"/>
+              <g filter="url(#reading-coil-shadow)">
+                <path d="M35 -2.2 C23 -11 5 -8 8 1 C9 4.5 15 6.5 21.5 6.5" fill="none" stroke="url(#reading-wire-metal)" stroke-width="3" stroke-linecap="round"/>
+                <path d="M35 2.5 C23 -6 6 -3 9 5.5 C10.5 8.5 16 10 21.5 10" fill="none" stroke="url(#reading-wire-metal)" stroke-width="2.8" stroke-linecap="round"/>
+              </g>
+            </g>
+          </defs>
+          <use href="#reading-coil-ring" x="0" y="26"/><use href="#reading-coil-ring" x="0" y="95"/>
+          <use href="#reading-coil-ring" x="0" y="163"/><use href="#reading-coil-ring" x="0" y="232"/>
+          <use href="#reading-coil-ring" x="0" y="300"/><use href="#reading-coil-ring" x="0" y="368"/>
+          <use href="#reading-coil-ring" x="0" y="437"/><use href="#reading-coil-ring" x="0" y="505"/>
+          <use href="#reading-coil-ring" x="0" y="574"/>
+        </svg>
+        <article class="reading-frosted-page" id="readingBookPage">
+          <div class="reading-binding-crease" aria-hidden="true"></div>
+          <div class="reading-page-image-mask" id="readingPageImageMask" aria-hidden="true"></div>
+          <button type="button" class="reading-shelf-backdrop" id="readingShelfBackdrop" aria-label="关闭书架" hidden></button>
+          <aside class="reading-shelf-drawer" id="readingShelfDrawer" aria-label="书架" aria-hidden="true" hidden>
+            <header><div><h2>书架</h2><p id="readingShelfCount">0 本书</p></div><button type="button" id="readingShelfClose" aria-label="关闭书架">×</button></header>
+            <div class="reading-shelf-list" id="readingShelfList"></div>
+          </aside>
+          <header class="reading-book-header">
+            <div class="reading-book-meta">
+              <h1 class="reading-book-title" id="readingBookTitle">还没有导入书籍</h1>
+            </div>
+          </header>
+          <div class="reading-book-content" id="readingBookContent" tabindex="0">
+            <p class="reading-empty">导入 TXT、Markdown 或 HTML 文本，开始在这里阅读。</p>
+          </div>
+          <footer class="reading-book-footer">
+            <div class="reading-progress-track"><div class="reading-progress-fill" id="readingProgressFill"></div></div>
+            <div class="reading-footer-controls">
+              <span id="readingPageIndicator">第 1 章 · 剩余 0 章</span>
+              <button type="button" class="reading-chapter-open" id="readingChapterOpen" aria-controls="readingChapterDrawer" aria-expanded="false">
+                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M5 5.5h14M5 10h14M5 14.5h9M5 19h9"/></svg><span>目录</span>
+              </button>
+              <div><button type="button" class="reading-page-button" id="readingPreviousPage" aria-label="上一页" title="上一页"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m14.5 5-7 7 7 7"/></svg></button><button type="button" class="reading-page-button" id="readingNextPage" aria-label="下一页" title="下一页"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m9.5 5 7 7-7 7"/></svg></button></div>
+            </div>
+          </footer>
+          <button type="button" class="reading-chapter-backdrop" id="readingChapterBackdrop" aria-label="关闭章节目录" hidden></button>
+          <aside class="reading-chapter-drawer" id="readingChapterDrawer" aria-label="章节目录" aria-hidden="true" hidden>
+            <header><h2>章节目录</h2><button type="button" id="readingChapterClose" aria-label="关闭章节目录">×</button></header>
+            <nav id="readingChapterList" aria-label="书籍章节"></nav>
+          </aside>
+        </article>
+      </div>
+    </div>
+  </main>
+</section>
+<div class="reading-note-popover" id="readingNotePopover" role="dialog" aria-label="AI 段落短评" hidden>
+  <button type="button" id="readingNoteClose" aria-label="关闭短评">×</button>
+  <p id="readingNoteText"></p>
+</div>
+<!-- 语音面板放在应用根层，确保遮罩居中覆盖整个浏览器视口。 -->
+<div class="voice-call-modal" id="voiceCallModal" hidden role="dialog" aria-modal="true" aria-labelledby="voiceCallTitle">
+  <div class="voice-call-panel" id="voiceCallPanel" data-call-state="idle">
+    <div class="voice-call-grain" aria-hidden="true"></div>
+    <div class="voice-call-stars" aria-hidden="true"></div>
+    <button class="voice-call-close" id="voiceCallClose" type="button" aria-label="放弃本次通话并关闭">×</button>
+    <div class="voice-call-heading"><span>✦　TODAY, JUST TALK　✦</span><h2 id="voiceCallTitle">留一段时间，慢慢说</h2><p>VOICE CALL · PRIVATE MOMENT</p></div>
+    <div class="voice-call-visual" aria-hidden="true">
+      <div class="voice-call-orb"><span class="voice-call-orb-glyph">✧</span></div>
+      <div class="voice-call-wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <p id="voiceCallStatus" class="voice-call-status" aria-live="polite">按下开始通话后，浏览器会请求麦克风权限。</p>
+    <div class="voice-call-intro">只有点“结束通话”才会保存记录并生成总结；点 × 放弃本次通话，不留下记录。</div>
+    <section class="voice-call-transcript" aria-label="本次通话记录">
+      <div class="voice-call-empty" id="voiceCallEmpty">说话后，转录内容会显示在这里。</div>
+      <div class="voice-call-messages" id="voiceCallTranscript"></div>
+      <div class="voice-call-interim" id="voiceCallInterim" hidden></div>
+    </section>
+    <section class="voice-call-summary" id="voiceCallSummaryPanel" hidden aria-labelledby="voiceCallSummaryTitle">
+      <h3 id="voiceCallSummaryTitle">本次通话总结</h3>
+      <p id="voiceCallSummaryText"></p>
+      <button class="secondary-button" id="voiceCallRetrySummary" type="button" hidden>重试通话总结</button>
+    </section>
+    <div class="voice-call-actions">
+      <button class="primary-button voice-call-start" id="voiceCallStart" type="button">开始通话</button>
+      <button class="primary-button voice-call-request" id="voiceCallRequest" type="button" disabled hidden><svg class="voice-call-request-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7.1 3.8 4.6 5.2c-.8.5-.9 1.7-.5 2.6 2.4 5.5 6.7 9.8 12.2 12.2.9.4 2.1.3 2.6-.5l1.4-2.5c.4-.7.2-1.6-.5-2l-3.1-1.8c-.7-.4-1.5-.2-2 .4l-1 1.2a16.2 16.2 0 0 1-4.3-4.3l1.2-1c.6-.5.8-1.3.4-2L9.1 4.3c-.4-.7-1.3-.9-2-.5Z"/></svg><span>请求 AI</span></button>
+      <button class="secondary-button voice-call-end" id="voiceCallEnd" type="button" disabled hidden>结束通话</button>
+      <button class="secondary-button" id="voiceCallRestart" type="button" hidden>再聊一次</button>
+    </div>
+    <details class="voice-call-history">
+      <summary>独立通话记忆 <span id="voiceCallHistoryCount"></span></summary>
+      <div id="voiceCallHistory"></div>
+    </details>
+  </div>
+</div>
+<dialog class="role-manager-dialog" id="characterManagerDialog" aria-labelledby="characterManagerTitle">
+  <div class="role-manager-content">
+    <div class="panel-title"><div><h2 id="characterManagerTitle">管理角色</h2><small>选择角色即切换当前发给 AI 的角色卡</small></div><button class="secondary-button" type="button" data-close-dialog="characterManagerDialog" aria-label="关闭角色管理">关闭</button></div>
+    <div id="characterPresetDialogSlot"></div>
+    <div class="form-actions role-manager-actions"><button class="secondary-button" type="button" id="newCharacter">新增角色</button><button class="danger-button" type="button" id="deleteCharacter">删除当前角色</button><button class="secondary-button" type="button" data-close-dialog="characterManagerDialog">完成</button></div>
+  </div>
+</dialog>
+<dialog class="role-manager-dialog" id="userProfileDialog" aria-labelledby="userProfileTitle">
+  <div class="role-manager-content">
+    <div class="panel-title"><div><h2 id="userProfileTitle">我的信息</h2><small>作为用户身份背景发送给 AI</small></div><button class="secondary-button" type="button" data-close-dialog="userProfileDialog" aria-label="关闭我的信息">关闭</button></div>
+    <div class="field"><label for="userProfile">用户身份信息</label><textarea id="userProfile" rows="8" placeholder="例如：希望被称呼的名字、身份背景、沟通偏好……"></textarea><small class="small-muted" id="userProfileTokenCount">当前约 0 token</small></div>
+    <div class="form-actions"><button class="primary-button" type="button" id="saveUserProfile">保存我的信息</button></div>
+  </div>
+</dialog>
+<dialog class="chat-summary-reminder" id="chatSummaryReminder" aria-labelledby="chatSummaryReminderTitle">
+  <div class="chat-summary-reminder-content"><h2 id="chatSummaryReminderTitle">聊天记录需要整理了</h2><p id="chatSummaryReminderText">未总结的对话已达到设定的 token 数。可以前往聊天总结页面挑选记录并整理成长期记忆。</p><div class="form-actions"><button class="secondary-button" type="button" id="dismissChatSummaryReminder">稍后再说</button><button class="primary-button" type="button" id="openChatSummaryReminder">前往总结</button></div></div>
+</dialog>
+<dialog class="role-manager-dialog" id="characterArchiveDialog" aria-labelledby="characterArchiveDialogTitle">
+  <div class="role-manager-content">
+    <div class="panel-title"><div><h2 id="characterArchiveDialogTitle">绑定记忆存档</h2><small>此角色捕获的记忆将写入所选存档</small></div><button class="secondary-button" type="button" data-close-dialog="characterArchiveDialog" aria-label="关闭绑定存档">关闭</button></div>
+    <div class="field"><label for="characterArchiveSelect">选择一个存档</label><select id="characterArchiveSelect"></select></div>
+    <div class="form-actions"><button class="primary-button" type="button" id="saveCharacterArchiveBinding">保存绑定</button><button class="secondary-button" type="button" id="clearCharacterArchiveBinding">解除绑定</button></div>
+  </div>
+</dialog>
+<dialog class="health-attachment-dialog" id="healthAttachmentDialog" aria-labelledby="healthAttachmentDialogTitle">
+  <div class="role-manager-content">
+    <div class="panel-title"><div><h2 id="healthAttachmentDialogTitle">插入健康摘要</h2><small>选择日期范围和要发送的数据</small></div><button class="secondary-button" type="button" id="closeHealthAttachmentDialog" aria-label="关闭健康摘要窗口">关闭</button></div>
+    <div class="health-attachment-periods">
+      <button type="button" data-health-period="today">今日</button><button type="button" data-health-period="week">本周</button><button type="button" data-health-period="month">本月</button><button type="button" data-health-period="all">所有</button>
+    </div>
+    <div class="health-attachment-custom"><label>自定义日期范围</label><div><input type="date" id="healthAttachmentFrom" aria-label="起始日期"><span>至</span><input type="date" id="healthAttachmentTo" aria-label="结束日期"></div></div>
+    <div class="health-attachment-options">
+      <label><input id="healthAttachmentIncludeDetails" type="checkbox" checked><span><strong>发送详细健康数据</strong><small>睡眠、饮食、排便、体重等原始记录</small></span></label>
+      <label><input id="healthAttachmentIncludeAnalysis" type="checkbox"><span><strong>发送分析数据</strong><small>与详细数据二选一；只发送所选日期的睡眠/健康分析与饮食分析，不附带详细记录</small></span></label>
+    </div>
+    <div class="form-actions"><button class="primary-button" type="button" id="insertCustomHealthAttachment">插入所选健康数据</button></div>
+  </div>
+</dialog>
+<dialog class="health-record-editor" id="healthRecordEditor" aria-labelledby="healthRecordEditorTitle">
+  <form id="healthRecordEditForm" method="dialog">
+    <div class="panel-title"><div><h2 id="healthRecordEditorTitle">编辑健康记录</h2><small id="healthRecordEditorDate"></small></div><button class="secondary-button" type="button" data-close-dialog="healthRecordEditor" aria-label="关闭编辑窗口">关闭</button></div>
+    <div id="healthRecordEditFields" class="health-record-edit-fields"></div>
+    <div class="form-actions"><button class="primary-button" type="submit">保存修改</button><button class="secondary-button" type="button" data-close-dialog="healthRecordEditor">取消</button></div>
+  </form>
+</dialog>
+<dialog class="book-dialog" id="chatReadingMemoryDialog" aria-labelledby="chatReadingMemoryTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="chatReadingMemoryTitle">选择小说阅读记忆</h2><p>勾选要随日常聊天一起发送的小说；每本小说的阅读记忆会单独标注书名。</p></div><button type="button" id="chatReadingMemoryClose" aria-label="关闭">×</button></div>
+    <label class="chat-reading-memory-select-all"><input id="chatReadingMemorySelectAll" type="checkbox"><span>全选</span></label>
+    <div class="chat-reading-memory-options" id="chatReadingMemoryChoices" aria-live="polite"></div>
+    <div class="book-dialog-actions"><button type="button" class="book-secondary-button" id="chatReadingMemoryCancel">取消</button><button type="button" class="book-primary-button" id="chatReadingMemoryConfirm">确认选择</button></div>
+  </div>
+</dialog>
+<dialog class="book-dialog" id="readingImportDialog" aria-labelledby="readingImportTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="readingImportTitle">导入书籍</h2><p>支持 TXT、Markdown 或 HTML 文本</p></div><button type="button" data-reading-close="readingImportDialog" aria-label="关闭">×</button></div>
+    <label class="book-field">书名<input id="readingImportBookTitle" maxlength="160" placeholder="输入书名"></label>
+    <label class="book-field">选择文本文件<input id="readingImportFile" type="file" accept=".txt,.md,.markdown,.html,.htm,text/plain,text/markdown,text/html"></label>
+    <label class="book-field">书籍内容<textarea id="readingImportText" rows="12" placeholder="也可以直接粘贴书籍文本"></textarea></label>
+    <div class="book-dialog-actions"><button type="button" class="book-secondary-button" data-reading-close="readingImportDialog">取消</button><button type="button" class="book-primary-button" id="readingImportSave">开始阅读</button></div>
+  </div>
+</dialog>
+<dialog class="book-dialog" id="readingThoughtDialog" aria-labelledby="readingThoughtTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="readingThoughtTitle">感想</h2></div><button type="button" data-reading-close="readingThoughtDialog" aria-label="关闭">×</button></div>
+    <div class="book-saved-list" id="readingThoughtList" aria-live="polite"></div>
+  </div>
+</dialog>
+<dialog class="book-dialog" id="readingDiscussionDialog" aria-labelledby="readingDiscussionTitle">
+  <div class="book-dialog-content reading-discussion-content">
+    <div class="book-dialog-heading"><div><h2 id="readingDiscussionTitle">段落讨论</h2><p>点击纸飞机请求 AI；发送消息只会加入讨论记录</p></div><button type="button" data-reading-close="readingDiscussionDialog" aria-label="关闭">×</button></div>
+    <details class="reading-discussion-quotes" id="readingDiscussionQuotePanel" open>
+      <summary><span>讨论引用</span><span id="readingDiscussionQuoteCount">0 段</span></summary>
+      <div id="readingDiscussionQuotes"></div>
+    </details>
+    <div class="reading-discussion-messages" id="readingDiscussionMessages" role="log" aria-live="polite" aria-label="讨论消息"></div>
+    <form class="chat-compose reading-discussion-compose" id="readingDiscussionForm">
+      <div class="chat-input-wrap"><textarea class="chat-input" id="readingDiscussionInput" rows="1" maxlength="4000" placeholder="聊聊这段内容，或向角色提问……" aria-label="讨论消息"></textarea></div>
+      <div class="chat-tools">
+        <button class="primary-button" id="readingDiscussionSend" type="submit" aria-label="发送消息" title="发送消息"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg></button>
+        <button class="chat-tool chat-request-button" id="readingDiscussionRequest" type="button" aria-label="请求 AI 回复" title="请求 AI 回复"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M3 11.5 21 3l-8.5 18-2-7.5L3 11.5Z"/><path d="m10.5 13.5 5-5"/></svg></button>
+      </div>
+    </form>
+  </div>
+</dialog>
+<dialog class="book-dialog" id="readingMemoryDialog" aria-labelledby="readingMemoryTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="readingMemoryTitle">阅读记忆</h2><p>勾选多条记忆后，可以整理成一条摘要</p></div><button type="button" data-reading-close="readingMemoryDialog" aria-label="关闭">×</button></div>
+    <div class="reading-memory-actions"><label><input type="checkbox" id="readingMemorySelectAll"> 全选</label><div><button class="book-secondary-button" type="button" id="readingMemoryArchive" disabled>存档</button><button class="book-secondary-button" type="button" id="readingMemoryDelete" disabled>删除</button><button class="book-primary-button" type="button" id="readingMemorySummarize" disabled>总结选中</button></div></div>
+    <div class="book-saved-list" id="readingMemoryList" aria-live="polite"></div>
+  </div>
+</dialog>
+<dialog class="book-dialog" id="readingCompanionConfirmDialog" aria-labelledby="readingCompanionConfirmTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="readingCompanionConfirmTitle">请求 AI 陪读</h2><p id="readingCompanionConfirmHint">选择这次发送给 AI 的章节范围</p></div><button type="button" data-reading-close="readingCompanionConfirmDialog" aria-label="关闭">×</button></div>
+    <div class="reading-companion-range">
+      <label class="book-field" for="readingCompanionStartChapter">从第 A 章开始
+        <select id="readingCompanionStartChapter"></select>
+      </label>
+      <label class="book-field" for="readingCompanionEndChapter">发送至第 B 章
+        <select id="readingCompanionEndChapter"></select>
+      </label>
+    </div>
+    <p class="reading-companion-estimate" id="readingCompanionEstimate" aria-live="polite"></p>
+    <div class="book-dialog-actions"><button type="button" class="book-secondary-button" data-reading-close="readingCompanionConfirmDialog">取消</button><button type="button" class="book-primary-button" id="readingCompanionConfirm">发送给 AI</button></div>
+  </div>
+</dialog>
+<dialog class="book-dialog book-beautify-dialog" id="readingBeautifyDialog" aria-labelledby="readingBeautifyTitle">
+  <div class="book-dialog-content">
+    <div class="book-dialog-heading"><div><h2 id="readingBeautifyTitle">共读设置</h2><p>背景与书页外观仅影响共读页，不会更改应用全局背景</p></div><button type="button" data-reading-close="readingBeautifyDialog" aria-label="关闭">×</button></div>
+    <nav class="book-settings-tabs" aria-label="共读设置页面">
+      <button type="button" class="is-active" data-reading-settings-tab="appearance" aria-selected="true">美化</button>
+      <button type="button" data-reading-settings-tab="settings" aria-selected="false">设置</button>
+    </nav>
+    <div class="book-settings-panel" data-reading-settings-panel="appearance">
+    <section class="book-style-section">
+      <h3>阅读排版</h3>
+      <label class="book-range-field" for="readingFontSize">字体大小 <output id="readingFontSizeValue">15px</output>
+        <input id="readingFontSize" type="range" min="12" max="24" value="15">
+      </label>
+      <label class="book-range-field" for="readingLineHeight">每行间隔 <output id="readingLineHeightValue">2.0</output>
+        <input id="readingLineHeight" type="range" min="14" max="30" value="20">
+      </label>
+    </section>
+    <section class="book-style-section">
+      <h3>背景动画</h3>
+      <label class="book-toggle-field"><input id="readingRainEnabled" type="checkbox"><span>下雨动画</span></label>
+      <label class="book-toggle-field"><input id="readingSnowEnabled" type="checkbox"><span>下雪动画</span></label>
+      <p class="book-hint">动画会显示在共读背景上，不会遮挡书页文字。</p>
+    </section>
+    <section class="book-style-section">
+      <h3>共读页面背景</h3>
+      <div class="book-style-row"><select id="readingBackgroundSelect" aria-label="选择共读页面背景"></select><button type="button" class="book-secondary-button" id="readingBackgroundRemove">移除</button></div>
+      <label class="book-file-button">添加页面背景图片<input id="readingBackgroundUpload" type="file" accept="image/*"></label>
+      <div class="book-image-preview" id="readingBackgroundPreview"></div>
+    </section>
+    <section class="book-style-section">
+      <h3>书页背景图</h3>
+      <div class="book-style-row"><select id="readingPageImageSelect" aria-label="选择书页背景图片"></select><button type="button" class="book-secondary-button" id="readingPageImageRemove">移除</button></div>
+      <label class="book-file-button">添加书页背景图片<input id="readingPageImageUpload" type="file" accept="image/*"></label>
+      <fieldset class="book-image-position"><legend>图片渐变装饰位置</legend>
+        <label><input type="radio" name="readingPageImagePosition" value="top" checked><span>覆盖书页上半部分</span></label>
+        <label><input type="radio" name="readingPageImagePosition" value="bottom"><span>覆盖书页下半部分</span></label>
+      </fieldset>
+      <label class="book-range-field" for="readingPageImageBlur">遮罩背景模糊度 <output id="readingPageImageBlurValue">0px</output>
+        <input id="readingPageImageBlur" type="range" min="0" max="36" value="0">
+      </label>
+      <div class="book-image-preview book-page-image-preview" id="readingPageImagePreview"></div>
+      <p class="book-hint">书页图片以三分之一高度的渐变遮罩显示，叠加在浅灰磨砂玻璃上。</p>
+    </section>
+    <section class="book-style-section">
+      <h3>书页外观</h3>
+      <label class="book-field book-color-field">书页颜色<input id="readingPageColor" type="color" value="#d9dde1"></label>
+      <label class="book-field book-color-field">正文文字颜色<input id="readingTextColor" type="color" value="#f2ecdf"></label>
+      <label class="book-field book-color-field">引用文字颜色<input id="readingQuoteColor" type="color" value="#d4c6a9"></label>
+      <fieldset class="book-image-position reading-turn-mode"><legend>翻页方式</legend>
+        <label><input type="radio" name="readingTurnMode" value="scroll" checked><span>滚动翻页</span></label>
+        <label><input type="radio" name="readingTurnMode" value="realistic"><span>仿真翻页</span></label>
+      </fieldset>
+      <label class="book-toggle-field"><input id="readingFrostedEnabled" type="checkbox" checked><span>开启磨砂玻璃</span></label>
+      <label class="book-range-field" for="readingPageOpacity">书页透明度 <output id="readingPageOpacityValue">84%</output>
+        <input id="readingPageOpacity" type="range" min="10" max="100" value="84">
+      </label>
+      <label class="book-range-field" for="readingPageBlur">背景模糊度 <output id="readingPageBlurValue">18px</output>
+        <input id="readingPageBlur" type="range" min="0" max="36" value="18">
+      </label>
+    </section>
+    </div>
+    <div class="book-settings-panel" data-reading-settings-panel="settings" hidden>
+      <section class="book-style-section">
+        <h3>AI 陪读</h3>
+        <label class="book-field" for="readingTokenLimit">每次发送的正文 token 上限
+          <input id="readingTokenLimit" type="number" min="256" max="200000" step="256" value="50000">
+        </label>
+        <p class="book-hint">按完整章节从上次 AI 阅读位置继续发送。token 数为估算值；正文长度会使用与应用其他分析相同的字符数估算方式。</p>
+      </section>
+      <section class="book-style-section">
+        <h3>讨论上下文</h3>
+        <label class="book-field" for="readingDiscussionHistoryLimit">发送此前的讨论消息条数
+          <input id="readingDiscussionHistoryLimit" type="number" min="30" max="100" step="1" value="60">
+        </label>
+        <p class="book-hint">发送最近 30 至 100 条已完成的讨论消息；本次待请求消息仍会发送。</p>
+      </section>
+    </div>
+  </div>
+</dialog>
+<!-- 全局提示框：由脚本显示保存、删除等操作结果。 -->
+<div class="toast" id="toast" popover="manual" role="status" aria-live="polite"></div>
+<!-- 页面结构加载后，启动交互与本地数据处理。 -->
+<script src="script.js"></script>
+<script src="enhancements.js"></script>
+<script src="book.js"></script>
+<script src="fridge.js"></script>
+<script src="shrine.js"></script>
+</body>
+</html>
