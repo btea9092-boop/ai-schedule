@@ -2359,13 +2359,18 @@ joy 时间含义：用户的自慰记录。
     maybePromptChatSummary();
   }
 
+  const chatEditScrollPositions = new Map();
+
   function editUserMessage(messageId) {
     const data = readData();
     const message = data.chat.find(item => item.id === messageId && item.role === 'user');
     if (!message) return;
-    const bubble = $('messages').querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+    const messages = $('messages');
+    const scrollPosition = captureChatScrollPosition(messages);
+    const bubble = messages.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
     const content = bubble?.querySelector('.message-content');
     if (!bubble || !content || bubble.classList.contains('editing-message')) return;
+    chatEditScrollPositions.set(messageId, scrollPosition);
     bubble.classList.add('editing-message');
     content.hidden = true;
     const editor = document.createElement('div');
@@ -2387,13 +2392,16 @@ joy 时间含义：用户的自慰记录。
     actions.append(saveButton, cancelButton);
     editor.append(textarea, actions);
     content.after(editor);
-    textarea.focus();
+    textarea.focus({ preventScroll: true });
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+    restoreChatScrollPosition(messages, scrollPosition);
   }
 
   function finishUserMessageEdit(messageId, save) {
     const bubble = $('messages').querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
     if (!bubble) return;
+    const scrollPosition = chatEditScrollPositions.get(messageId) || captureChatScrollPosition($('messages'));
+    chatEditScrollPositions.delete(messageId);
     if (save) {
       const data = readData();
       const message = data.chat.find(item => item.id === messageId && item.role === 'user');
@@ -2402,7 +2410,7 @@ joy 时间含义：用户的自慰记录。
       removeSummariesForMessages(data, [message]);
       message.text = textarea.value.trim();
       writeData(data);
-      renderChatFromStorage();
+      renderChatFromStorage(scrollPosition);
       renderChatSummaryPage();
       renderChatMemoryChoices();
       return;
@@ -2410,6 +2418,7 @@ joy 时间含义：用户的自慰记录。
     bubble.querySelector('.message-editor')?.remove();
     bubble.querySelector('.message-content').hidden = false;
     bubble.classList.remove('editing-message');
+    restoreChatScrollPosition($('messages'), scrollPosition);
   }
 
   function playUserMessageSound() {
@@ -3300,10 +3309,9 @@ joy 时间含义：用户的自慰记录。
     return { ...message, text: match[2].trim(), voice: true, voiceSettings, voiceSource: match[0] };
   }
 
-  function renderChatFromStorage() {
+  function renderChatFromStorage(scrollPosition = null) {
     const messages = $('messages');
-    const previousScrollTop = messages.scrollTop;
-    const wasAtBottom = messages.scrollHeight - messages.clientHeight - previousScrollTop <= 24;
+    scrollPosition ||= captureChatScrollPosition(messages);
     const data = readData();
     const roleChat = chatForActiveCharacter(data);
     renderedChatCharacterId = activeCharacterId(data);
@@ -3329,8 +3337,7 @@ joy 时间含义：用户的自慰记录。
       }).join('')
       : '<div class="message ai"><div class="message-content">嗨，欢迎来到这里。🌷</div></div>';
     messages.innerHTML = savedMessagesHtml;
-    if (!wasAtBottom) messages.scrollTop = previousScrollTop;
-    scrollMessagesToBottom(() => wasAtBottom);
+    restoreChatScrollPosition(messages, scrollPosition);
   }
 
   function voiceMessageMarkup(text, source = '') {
@@ -3348,6 +3355,44 @@ joy 时间含义：用户的自慰记录。
       requestAnimationFrame(scroll);
     });
     messages.querySelectorAll('img').forEach(image => image.addEventListener('load', scroll, { once: true }));
+  }
+
+  function captureChatScrollPosition(messages) {
+    const scrollTop = messages.scrollTop;
+    const wasAtBottom = messages.scrollHeight - messages.clientHeight - scrollTop <= 24;
+    const containerTop = messages.getBoundingClientRect().top + messages.clientTop;
+    const anchor = [...messages.querySelectorAll('.message[data-message-id]')]
+      .find(message => message.getBoundingClientRect().bottom > containerTop);
+    return {
+      scrollTop,
+      wasAtBottom,
+      anchorId: anchor?.dataset.messageId || '',
+      anchorOffset: anchor ? anchor.getBoundingClientRect().top - containerTop : 0
+    };
+  }
+
+  function restoreChatScrollPosition(messages, position) {
+    const restore = () => {
+      if (position.wasAtBottom) {
+        messages.scrollTop = messages.scrollHeight;
+        return;
+      }
+      const anchor = position.anchorId
+        ? messages.querySelector(`.message[data-message-id="${CSS.escape(position.anchorId)}"]`)
+        : null;
+      if (!anchor) {
+        messages.scrollTop = position.scrollTop;
+        return;
+      }
+      const containerTop = messages.getBoundingClientRect().top + messages.clientTop;
+      messages.scrollTop += anchor.getBoundingClientRect().top - containerTop - position.anchorOffset;
+    };
+    restore();
+    requestAnimationFrame(() => {
+      restore();
+      requestAnimationFrame(restore);
+    });
+    messages.querySelectorAll('img').forEach(image => image.addEventListener('load', restore, { once: true }));
   }
 
   function healthAttachmentRange(period) {
