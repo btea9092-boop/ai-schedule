@@ -15,6 +15,7 @@
   const previousFavoriteInstruction = '- 对确有长期珍藏、回味或日后查阅价值的信息，可自主使用 <收藏>内容</收藏>；包括用户有意义的表达、值得保留的想法或有特殊意义的片段。稳定偏好、背景和事实优先记入记忆，不要仅因用户喜欢某物就收藏；避免收藏普通信息或重复内容。';
   const currentFavoriteInstruction = '- 收藏是角色认为值得珍藏、回味或日后查阅的念头与对话片段，可包括用户或角色自己的愿望、重要表达、灵感及有意义的聊天内容。由角色判断是否真正值得收藏；不要把普通事实、流水账或每段对话都收藏，也不要重复收藏。';
   let selectedReadingBookIds = new Set();
+  let initialChatScrollPending = true;
   const chineseInteger = value => {
     const digits = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
     if (value < 10) return digits[value];
@@ -2359,22 +2360,26 @@ joy 时间含义：用户的自慰记录。
     maybePromptChatSummary();
   }
 
-  const chatEditScrollPositions = new Map();
-
   function editUserMessage(messageId) {
     const data = readData();
     const message = data.chat.find(item => item.id === messageId && item.role === 'user');
     if (!message) return;
-    const messages = $('messages');
-    const scrollPosition = captureChatScrollPosition(messages);
-    const bubble = messages.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
+    const bubble = $('messages').querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
     const content = bubble?.querySelector('.message-content');
     if (!bubble || !content || bubble.classList.contains('editing-message')) return;
-    chatEditScrollPositions.set(messageId, scrollPosition);
+    const messages = $('messages');
+    const editScrollState = {
+      scrollTop: messages.scrollTop,
+      wasAtBottom: messages.scrollHeight - messages.clientHeight - messages.scrollTop <= 24,
+      pageScrollTop: window.scrollY
+    };
     bubble.classList.add('editing-message');
     content.hidden = true;
     const editor = document.createElement('div');
     editor.className = 'message-editor';
+    editor.dataset.scrollTop = String(editScrollState.scrollTop);
+    editor.dataset.wasAtBottom = String(editScrollState.wasAtBottom);
+    editor.dataset.pageScrollTop = String(editScrollState.pageScrollTop);
     const textarea = document.createElement('textarea');
     textarea.className = 'message-edit-input';
     textarea.value = message.text || '';
@@ -2392,33 +2397,36 @@ joy 时间含义：用户的自慰记录。
     actions.append(saveButton, cancelButton);
     editor.append(textarea, actions);
     content.after(editor);
-    textarea.focus({ preventScroll: true });
+    textarea.focus();
     textarea.setSelectionRange(textarea.value.length, textarea.value.length);
-    restoreChatScrollPosition(messages, scrollPosition);
   }
 
   function finishUserMessageEdit(messageId, save) {
     const bubble = $('messages').querySelector(`[data-message-id="${CSS.escape(messageId)}"]`);
     if (!bubble) return;
-    const scrollPosition = chatEditScrollPositions.get(messageId) || captureChatScrollPosition($('messages'));
-    chatEditScrollPositions.delete(messageId);
+    const editor = bubble.querySelector('.message-editor');
+    const editScrollState = editor ? {
+      scrollTop: Number(editor.dataset.scrollTop) || 0,
+      wasAtBottom: editor.dataset.wasAtBottom === 'true',
+      pageScrollTop: Number(editor.dataset.pageScrollTop) || 0
+    } : null;
     if (save) {
       const data = readData();
       const message = data.chat.find(item => item.id === messageId && item.role === 'user');
-      const textarea = bubble.querySelector('.message-edit-input');
+      const textarea = editor?.querySelector('.message-edit-input');
       if (!message || !textarea) return;
       removeSummariesForMessages(data, [message]);
       message.text = textarea.value.trim();
       writeData(data);
-      renderChatFromStorage(scrollPosition);
+      renderChatFromStorage(editScrollState);
       renderChatSummaryPage();
       renderChatMemoryChoices();
       return;
     }
-    bubble.querySelector('.message-editor')?.remove();
+    editor?.remove();
     bubble.querySelector('.message-content').hidden = false;
     bubble.classList.remove('editing-message');
-    restoreChatScrollPosition($('messages'), scrollPosition);
+    if (editScrollState) restoreChatScrollPosition(editScrollState);
   }
 
   function playUserMessageSound() {
@@ -3309,9 +3317,12 @@ joy 时间含义：用户的自慰记录。
     return { ...message, text: match[2].trim(), voice: true, voiceSettings, voiceSource: match[0] };
   }
 
-  function renderChatFromStorage(scrollPosition = null) {
+  function renderChatFromStorage(scrollState = null) {
     const messages = $('messages');
-    scrollPosition ||= captureChatScrollPosition(messages);
+    const previousScrollTop = scrollState?.scrollTop ?? messages.scrollTop;
+    const wasAtBottom = initialChatScrollPending || (scrollState?.wasAtBottom
+      ?? (messages.scrollHeight - messages.clientHeight - previousScrollTop <= 24));
+    const pageScrollTop = scrollState?.pageScrollTop ?? window.scrollY;
     const data = readData();
     const roleChat = chatForActiveCharacter(data);
     renderedChatCharacterId = activeCharacterId(data);
@@ -3337,7 +3348,19 @@ joy 时间含义：用户的自慰记录。
       }).join('')
       : '<div class="message ai"><div class="message-content">嗨，欢迎来到这里。🌷</div></div>';
     messages.innerHTML = savedMessagesHtml;
-    restoreChatScrollPosition(messages, scrollPosition);
+    restoreChatScrollPosition({ scrollTop: previousScrollTop, wasAtBottom, pageScrollTop });
+    scrollMessagesToBottom(() => wasAtBottom);
+  }
+
+  function restoreChatScrollPosition({ scrollTop, wasAtBottom, pageScrollTop }) {
+    const messages = $('messages');
+    const restore = () => {
+      messages.scrollTop = wasAtBottom ? messages.scrollHeight : scrollTop;
+      if (window.scrollY !== pageScrollTop) window.scrollTo(window.scrollX, pageScrollTop);
+    };
+    restore();
+    requestAnimationFrame(restore);
+    requestAnimationFrame(restore);
   }
 
   function voiceMessageMarkup(text, source = '') {
@@ -3357,42 +3380,12 @@ joy 时间含义：用户的自慰记录。
     messages.querySelectorAll('img').forEach(image => image.addEventListener('load', scroll, { once: true }));
   }
 
-  function captureChatScrollPosition(messages) {
-    const scrollTop = messages.scrollTop;
-    const wasAtBottom = messages.scrollHeight - messages.clientHeight - scrollTop <= 24;
-    const containerTop = messages.getBoundingClientRect().top + messages.clientTop;
-    const anchor = [...messages.querySelectorAll('.message[data-message-id]')]
-      .find(message => message.getBoundingClientRect().bottom > containerTop);
-    return {
-      scrollTop,
-      wasAtBottom,
-      anchorId: anchor?.dataset.messageId || '',
-      anchorOffset: anchor ? anchor.getBoundingClientRect().top - containerTop : 0
-    };
-  }
-
-  function restoreChatScrollPosition(messages, position) {
-    const restore = () => {
-      if (position.wasAtBottom) {
-        messages.scrollTop = messages.scrollHeight;
-        return;
-      }
-      const anchor = position.anchorId
-        ? messages.querySelector(`.message[data-message-id="${CSS.escape(position.anchorId)}"]`)
-        : null;
-      if (!anchor) {
-        messages.scrollTop = position.scrollTop;
-        return;
-      }
-      const containerTop = messages.getBoundingClientRect().top + messages.clientTop;
-      messages.scrollTop += anchor.getBoundingClientRect().top - containerTop - position.anchorOffset;
-    };
-    restore();
-    requestAnimationFrame(() => {
-      restore();
-      requestAnimationFrame(restore);
-    });
-    messages.querySelectorAll('img').forEach(image => image.addEventListener('load', restore, { once: true }));
+  function scrollInitialChatToBottom() {
+    if (!initialChatScrollPending) return;
+    scrollMessagesToBottom(() => initialChatScrollPending);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      initialChatScrollPending = false;
+    }));
   }
 
   function healthAttachmentRange(period) {
@@ -4592,6 +4585,8 @@ joy 时间含义：用户的自慰记录。
     $('autoSummaryTokenThreshold').value = tokenSettings.autoSummaryTokenThreshold;
     $('healthMemoryAutoSummaryTokenThreshold').value = tokenSettings.healthMemoryAutoSummaryTokenThreshold;
     refresh();
+    window.addEventListener('load', scrollInitialChatToBottom, { once: true });
+    window.addEventListener('pageshow', scrollInitialChatToBottom, { once: true });
     renderChatFromStorage();
     $('chatSlimeToggle')?.addEventListener('change', event => {
       const data = readData();
