@@ -1531,7 +1531,7 @@ joy 时间含义：用户的自慰记录。
       }
       return '';
     }).trim();
-    const matches = [...cleaned.matchAll(/<(消息|语音)(?=\s|>)([^>]*)>([\s\S]*?)<\/\1>/g)];
+    const matches = [...cleaned.matchAll(/<(消息|语音)(?=\s|>)([^>]*)>([\s\S]*?)<\/\1>/gi)];
     const matureVoice = data.settings.voice?.activeDirectivePreset === 'mature';
     const voiceEmotions = new Set(matureVoice
       ? ['sad', 'angry', 'fearful', 'disgusted', 'surprised', 'calm', 'fluent']
@@ -1565,7 +1565,7 @@ joy 时间含义：用户的自慰记录。
         const outside = cleaned.slice(cursor, match.index).trim();
         if (outside) visibleText.push({ text: outside, voice: false });
         if (match[3].trim()) {
-          const voice = match[1] === '语音';
+          const voice = match[1].toLowerCase() === '语音';
           visibleText.push({
             text: match[3].trim(),
             voice,
@@ -1576,7 +1576,40 @@ joy 时间含义：用户的自慰记录。
       }
       const trailing = cleaned.slice(cursor).trim();
       if (trailing) visibleText.push({ text: trailing, voice: false });
-    } else visibleText = [{ text: cleaned.replace(/<\/?(?:消息|语音)(?:\s+[^>]*)?>/g, '').trim(), voice: false }].filter(message => message.text);
+    } else visibleText = [{ text: cleaned.replace(/<\/?(?:消息|语音)(?:\s+[^>]*)?>/gi, '').trim(), voice: false }].filter(message => message.text);
+    const expandedText = [];
+    for (const message of visibleText) {
+      if (message.voice) {
+        expandedText.push(message);
+        continue;
+      }
+      const nestedVoiceMatches = [...message.text.matchAll(/<语音(?=\s|>)([^>]*)>([\s\S]*?)<\/语音>/gi)];
+      if (!nestedVoiceMatches.length) {
+        expandedText.push(message);
+        continue;
+      }
+      let cursor = 0;
+      for (const match of nestedVoiceMatches) {
+        const outside = message.text.slice(cursor, match.index)
+          .replace(/<\/?(?:消息|语音)(?=\s|>)[^>]*>/gi, '')
+          .trim();
+        if (outside) expandedText.push({ text: outside, voice: false });
+        if (match[2].trim()) {
+          expandedText.push({
+            text: match[2].trim(),
+            voice: true,
+            voiceSettings: parseVoiceSettings(match[1]),
+            voiceSource: match[0]
+          });
+        }
+        cursor = match.index + match[0].length;
+      }
+      const trailing = message.text.slice(cursor)
+        .replace(/<\/?(?:消息|语音)(?=\s|>)[^>]*>/gi, '')
+        .trim();
+      if (trailing) expandedText.push({ text: trailing, voice: false });
+    }
+    visibleText = expandedText;
     return {
       messages: visibleText.length ? visibleText.map(message => message.text) : ['（已为你收好。）'],
       voiceMessageIndexes: visibleText.flatMap((message, index) => message.voice ? [index] : []),
@@ -3253,6 +3286,20 @@ joy 时间含义：用户的自慰记录。
     ], { includeTimeContext: false });
   };
 
+  function recoverLegacyVoiceMessage(message) {
+    if (message.role !== 'assistant' || message.voice) return message;
+    const match = String(message.text || '').trim().match(/^(?:<消息>\s*)?<语音(?=\s|>)([^>]*)>([\s\S]*?)<\/语音>(?:\s*<\/消息>)?$/i);
+    if (!match) return message;
+    const voiceSettings = {};
+    for (const attribute of match[1].matchAll(/([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+      const name = attribute[1].toLowerCase();
+      const value = attribute[2] ?? attribute[3] ?? attribute[4] ?? '';
+      if (name === 'emotion') voiceSettings.emotion = value;
+      else if (['speed', 'pitch', 'volume'].includes(name) && Number.isFinite(Number(value))) voiceSettings[name] = Number(value);
+    }
+    return { ...message, text: match[2].trim(), voice: true, voiceSettings, voiceSource: match[0] };
+  }
+
   function renderChatFromStorage() {
     const messages = $('messages');
     const previousScrollTop = messages.scrollTop;
@@ -3265,7 +3312,8 @@ joy 时间含义：用户的自慰记录。
     const slimeToggle = $('chatSlimeToggle');
     if (slimeToggle) slimeToggle.checked = slimeEnabled;
     const savedMessagesHtml = roleChat.length
-      ? roleChat.map((message, index) => {
+      ? roleChat.map((storedMessage, index) => {
+        const message = recoverLegacyVoiceMessage(storedMessage);
         const voiceSource = message.voice
           ? message.voiceSource || `<语音${Object.entries(message.voiceSettings || {}).map(([name, value]) => ` ${name}="${value}"`).join('')}>${message.text}</语音>`
           : '';
